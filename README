@@ -1,0 +1,93 @@
+NAME
+     XML::Parser::Wrapper - A simple object wrapper around XML::Parser
+
+SYNOPSIS
+     use XML::Parser::Wrapper;
+
+     my $xml = qq{<foo><head id="a">Hello World!</head></foo>};
+     my $root = XML::Parser::Wrapper->new($xml);
+
+     my $root2 = XML::Parser::Wrapper->new({ file => '/tmp/test.xml' });
+
+     my $root_tag_name = $root->name;
+     my $roots_children = $root->elements;
+
+     foreach my $element (@$roots_children) {
+         if ($element->name eq 'head') {
+             my $id = $element->attr('id');
+             my $hello_world_text = $element->text; # eq "Hello World!"
+         }
+     }
+
+DESCRIPTION
+     XML::Parser::Wrapper provides a simple object around XML::Parser
+     to make it more convenient to deal with the parse tree returned
+     by XML::Parser.
+
+METHODS
+  new($xml), new({ file => $filename })
+     Calls XML::Parser to parse the given XML and returns a new
+     XML::Parser::Wrapper object using the parse tree output from
+     XML::Parser.
+
+  name()
+     Returns the name of the element represented by this object.
+
+     Aliases: tag(), getName(), getTag()
+
+  is_text()
+     Returns a true value if this element is a text element, false
+     otherwise.
+
+     Aliases: isText()
+
+  text()
+     If this element is a text element, the text is returned.
+     Otherwise, return the text from the first child text element, or
+     undef if there is not one.
+
+     Aliases: content(), getText(), getContent()
+
+  attributes(), attributes($name1, $name2, ...)
+     If no arguments are given, returns a hash of attributes for this
+     element.  If arguments are present, an array of corresponding
+     attribute values is returned.  Returns an array in array context
+     and an array reference if called in scalar context.
+
+     E.g.,
+
+         <field name="foo" id="42">bar</field>
+
+         my ($name, $id) = $element->attributes('name', 'id');
+
+     Aliases: attrs(), getAttributes(), getAttrs()
+
+  attribute($name)
+     Similar to attributes(), but only returns one value.
+
+     Aliases: attr(), getAttribute(), getAttr()
+
+  elements()
+     Returns an array of child elements.
+
+     Aliases: getElements(), kids(), getKids(), children(), getChildren()
+
+  first_element()
+     Returns the first child element of this element.
+
+     Aliases: getFirstElement(), kid(), first_kid()
+
+EXAMPLES
+AUTHOR
+        Don Owens <don@owensnet.com>
+
+COPYRIGHT
+        Copyright (c) 2003-2005 Don Owens
+
+        All rights reserved. This program is free software; you can
+        redistribute it and/or modify it under the same terms as Perl
+        itself.
+
+VERSION
+    $Id: Wrapper.pm,v 1.1 2005/04/24 19:35:24 don Exp $
+

@@ -1,0 +1,7 @@
+MANIFEST
+README
+INSTALL
+Makefile.PL
+lib/XML/Parser/Wrapper.pm
+t/00use.t
+META.yml                                 Module meta-data (added by MakeMaker)
