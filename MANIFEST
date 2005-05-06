@@ -4,4 +4,5 @@ INSTALL
 Makefile.PL
 lib/XML/Parser/Wrapper.pm
 t/00use.t
+t/01element.t
 META.yml                                 Module meta-data (added by MakeMaker)

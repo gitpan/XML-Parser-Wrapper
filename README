@@ -4,7 +4,7 @@ NAME
 SYNOPSIS
      use XML::Parser::Wrapper;
 
-     my $xml = qq{<foo><head id="a">Hello World!</head></foo>};
+     my $xml = qq{<foo><head id="a">Hello World!</head><head2><test_tag id="b"/></head2></foo>};
      my $root = XML::Parser::Wrapper->new($xml);
 
      my $root2 = XML::Parser::Wrapper->new({ file => '/tmp/test.xml' });
@@ -18,6 +18,10 @@ SYNOPSIS
              my $hello_world_text = $element->text; # eq "Hello World!"
          }
      }
+
+     my $head_element = $root->element('head2');
+     my $head_elements = $root->elements('head2');
+     my $test = $root->element('head2')->element('test_tag');
 
 DESCRIPTION
      XML::Parser::Wrapper provides a simple object around XML::Parser
@@ -67,27 +71,43 @@ METHODS
 
      Aliases: attr(), getAttribute(), getAttr()
 
-  elements()
-     Returns an array of child elements.
+  elements(), elements($element_name)
+     Returns an array of child elements.  If $element_name is passed,
+     a list of child elements with that name is returned.
 
      Aliases: getElements(), kids(), getKids(), children(), getChildren()
 
-  first_element()
-     Returns the first child element of this element.
+  first_element(), first_element($element_name)
+     Returns the first child element of this element.  If
+     $element_name is passed, returns the first child element with
+     that name is returned.
 
      Aliases: getFirstElement(), kid(), first_kid()
 
+  first_element_if($element_name)
+     Like first_element(), except if there is no corresponding child,
+     return an object that will work instead of undef.  This allows
+     for reliable chaining, e.g.
+
+     my $class = $root->kid_if('field')->kid_if('field')->kid_if('element')
+                  ->kid_if('field')->attribute('class');
+
+     Aliases: getFirstElementIf(), kidIf(), first_kid_if()
+
 EXAMPLES
 AUTHOR
-        Don Owens <don@owensnet.com>
+     Don Owens <don@owensnet.com>
+
+CONTRIBUTORS
+     David Bushong
 
 COPYRIGHT
-        Copyright (c) 2003-2005 Don Owens
+     Copyright (c) 2003-2005 Don Owens
 
-        All rights reserved. This program is free software; you can
-        redistribute it and/or modify it under the same terms as Perl
-        itself.
+     All rights reserved. This program is free software; you can
+     redistribute it and/or modify it under the same terms as Perl
+     itself.
 
 VERSION
-    $Id: Wrapper.pm,v 1.1 2005/04/24 19:35:24 don Exp $
+     0.02
 

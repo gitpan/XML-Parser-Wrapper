@@ -2,7 +2,7 @@
 # Creation date: 2005-04-23 22:39:14
 # Authors: Don
 # Change log:
-# $Id: Wrapper.pm,v 1.1 2005/04/24 19:35:24 don Exp $
+# $Id: Wrapper.pm,v 1.3 2005/05/06 02:00:39 don Exp $
 #
 # Copyright (c) 2005 Don Owens
 #
@@ -20,7 +20,7 @@
 
  use XML::Parser::Wrapper;
 
- my $xml = qq{<foo><head id="a">Hello World!</head></foo>};
+ my $xml = qq{<foo><head id="a">Hello World!</head><head2><test_tag id="b"/></head2></foo>};
  my $root = XML::Parser::Wrapper->new($xml);
 
  my $root2 = XML::Parser::Wrapper->new({ file => '/tmp/test.xml' });
@@ -34,6 +34,10 @@
          my $hello_world_text = $element->text; # eq "Hello World!"
      }
  }
+
+ my $head_element = $root->element('head2');
+ my $head_elements = $root->elements('head2');
+ my $test = $root->element('head2')->element('test_tag');
 
 =head1 DESCRIPTION
 
@@ -52,7 +56,7 @@ use XML::Parser ();
 
     use vars qw($VERSION);
     
-    $VERSION = '0.1';
+    $VERSION = '0.02';
 
 =pod
 
@@ -63,6 +67,15 @@ use XML::Parser ();
  XML::Parser.
 
 =cut
+
+    # Takes the 'Tree' style output from XML::Parser and wraps in in objects.
+    # A parse tree looks like the following:
+    #
+    #          [foo, [{}, head, [{id => "a"}, 0, "Hello ",  em, [{}, 0, "there"]],
+    #                      bar, [         {}, 0, "Howdy",  ref, [{}]],
+    #                        0, "do"
+    #                ]
+    #          ]
     sub new {
         my $proto = shift;
         my $arg = shift;
@@ -210,27 +223,33 @@ use XML::Parser ();
 
 =pod
 
-=head2 elements()
+=head2 elements(), elements($element_name)
 
- Returns an array of child elements.
+ Returns an array of child elements.  If $element_name is passed,
+ a list of child elements with that name is returned.
 
  Aliases: getElements(), kids(), getKids(), children(), getChildren()
 
 =cut
     sub kids {
         my $self = shift;
+        my $tag = shift;
+        
         my $val = $self->[1];
-
         my $i = 1;
         my $kids = [];
         if (ref($val) eq 'ARRAY') {
             my $stop = $#$val;
             while ($i < $stop) {
-                my $kid;
-                my $tag = $val->[$i];
-                $kid = XML::Parser::Wrapper->new_element([ $tag, $val->[$i + 1] ]);
+                my $this_tag = $val->[$i];
+                if (defined($tag)) {
+                    push @$kids, XML::Parser::Wrapper->new_element([ $this_tag, $val->[$i + 1] ])
+                        if $this_tag eq $tag;
+                } else {
+                    push @$kids, XML::Parser::Wrapper->new_element([ $this_tag, $val->[$i + 1] ]);
+                }
+                
                 $i += 2;
-                push @$kids, $kid;
             }
         }
         
@@ -244,18 +263,36 @@ use XML::Parser ();
 
 =pod
 
-=head2 first_element()
+=head2 first_element(), first_element($element_name)
 
- Returns the first child element of this element.
+ Returns the first child element of this element.  If
+ $element_name is passed, returns the first child element with
+ that name is returned.
 
  Aliases: getFirstElement(), kid(), first_kid()
 
 =cut
     sub kid {
         my $self = shift;
+        my $tag = shift;
+        
         my $val = $self->[1];
         if (ref($val) eq 'ARRAY') {
-            return XML::Parser::Wrapper->new_element([ $val->[1], $val->[2] ]);
+            if (defined($tag)) {
+                my $i = 1;
+                my $stop = $#$val;
+                while ($i < $stop) {
+                    my $kid;
+                    my $this_tag = $val->[$i];
+                    if ($this_tag eq $tag) {
+                        return XML::Parser::Wrapper->new_element([ $this_tag, $val->[$i + 1] ]);
+                    }
+                    $i += 2;
+                }
+                return undef;
+            } else {
+                return XML::Parser::Wrapper->new_element([ $val->[1], $val->[2] ]);
+            }
         } else {
             return $val;
         }
@@ -263,6 +300,34 @@ use XML::Parser ();
     *first_element = \&kid;
     *getFirstElement = \&kid;
     *first_kid = \&kid;
+
+=pod
+
+=head2 first_element_if($element_name)
+
+ Like first_element(), except if there is no corresponding child,
+ return an object that will work instead of undef.  This allows
+ for reliable chaining, e.g.
+
+ my $class = $root->kid_if('field')->kid_if('field')->kid_if('element')
+              ->kid_if('field')->attribute('class');
+
+ Aliases: getFirstElementIf(), kidIf(), first_kid_if()
+
+=cut
+    sub kid_if {
+        my $self = shift;
+        my $tag = shift;
+        my $kid = $self->kid($tag);
+
+        return $kid if defined $kid;
+
+        return XML::Parser::Wrapper->new_element([ undef, [ {} ] ]);
+    }
+    *kidIf = \&kid_if;
+    *first_element_if = \&kid_if;
+    *first_kid_if = \&kid_if;
+    *getFirstElementIf = \&kid_if;
 }
 
 1;
@@ -276,18 +341,22 @@ __END__
 
 =head1 AUTHOR
 
-    Don Owens <don@owensnet.com>
+ Don Owens <don@owensnet.com>
+
+=head1 CONTRIBUTORS
+
+ David Bushong
 
 =head1 COPYRIGHT
 
-    Copyright (c) 2003-2005 Don Owens
+ Copyright (c) 2003-2005 Don Owens
 
-    All rights reserved. This program is free software; you can
-    redistribute it and/or modify it under the same terms as Perl
-    itself.
+ All rights reserved. This program is free software; you can
+ redistribute it and/or modify it under the same terms as Perl
+ itself.
 
 =head1 VERSION
 
-$Id: Wrapper.pm,v 1.1 2005/04/24 19:35:24 don Exp $
+ 0.02
 
 =cut
