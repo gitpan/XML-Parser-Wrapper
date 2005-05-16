@@ -52,6 +52,18 @@ METHODS
 
      Aliases: content(), getText(), getContent()
 
+  html()
+     Like text(), except HTML-escape the text (escape &, <, >, and ")
+     before returning it.
+
+     Aliases: content_html(), getContentHtml()
+
+  xml()
+     Like text(), except XML-escape the text (escape &, <, >, and ")
+     before returning it.
+
+     Aliases: content_xml(), getContentXml()
+
   attributes(), attributes($name1, $name2, ...)
      If no arguments are given, returns a hash of attributes for this
      element.  If arguments are present, an array of corresponding
@@ -109,5 +121,5 @@ COPYRIGHT
      itself.
 
 VERSION
-     0.02
+     0.03
 

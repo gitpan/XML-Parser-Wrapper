@@ -2,7 +2,7 @@
 # Creation date: 2005-04-23 22:39:14
 # Authors: Don
 # Change log:
-# $Id: Wrapper.pm,v 1.3 2005/05/06 02:00:39 don Exp $
+# $Id: Wrapper.pm,v 1.7 2005/05/16 14:29:10 don Exp $
 #
 # Copyright (c) 2005 Don Owens
 #
@@ -56,7 +56,7 @@ use XML::Parser ();
 
     use vars qw($VERSION);
     
-    $VERSION = '0.02';
+    $VERSION = '0.03';
 
 =pod
 
@@ -160,6 +160,42 @@ use XML::Parser ();
     *getText = \&text;
     *getContent = \&text;
     *getContents = \&text;
+
+=pod
+
+=head2 html()
+
+ Like text(), except HTML-escape the text (escape &, <, >, and ")
+ before returning it.
+
+ Aliases: content_html(), getContentHtml()
+
+=cut
+    sub html {
+        my $self = shift;
+
+        return $self->escape_html($self->text);
+    }
+    *content_html = \&html;
+    *getContentHtml = \&html;
+
+=pod
+
+=head2 xml()
+
+ Like text(), except XML-escape the text (escape &, <, >, and ")
+ before returning it.
+
+ Aliases: content_xml(), getContentXml()
+
+=cut
+    sub xml {
+        my $self = shift;
+
+        return $self->escape_xml($self->text);
+    }
+    *content_xml = \&html;
+    *getContentXml = \&html;
 
 =pod
 
@@ -328,6 +364,31 @@ use XML::Parser ();
     *first_element_if = \&kid_if;
     *first_kid_if = \&kid_if;
     *getFirstElementIf = \&kid_if;
+
+    sub escape_html {
+        my ($self, $text) = @_;
+        return undef unless defined $text;
+        
+        $text =~ s/\&/\&amp;/g;
+        $text =~ s/</\&lt;/g;
+        $text =~ s/>/\&gt;/g;
+        $text =~ s/\"/\&quot;/g;
+
+        return $text;
+    }
+
+    sub escape_xml {
+        my ($self, $text) = @_;
+        return undef unless defined $text;
+        
+        $text =~ s/\&/\&amp;/g;
+        $text =~ s/</\&lt;/g;
+        $text =~ s/>/\&gt;/g;
+        $text =~ s/\"/\&quot;/g;
+
+        return $text;
+    }
+
 }
 
 1;
@@ -357,6 +418,6 @@ __END__
 
 =head1 VERSION
 
- 0.02
+ 0.03
 
 =cut
