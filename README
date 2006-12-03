@@ -106,20 +106,29 @@ METHODS
 
      Aliases: getFirstElementIf(), kidIf(), first_kid_if()
 
+  simple_data()
+     Assume a data structure of hashes, arrays, and strings are
+     represented in the xml with no attributes.  Return the data
+     structure, leaving out the root tag.
+
+  dump_simple_data($data)
+     The reverse of simple_data() -- return xml representing the data
+     structure passed.
+
 EXAMPLES
 AUTHOR
-     Don Owens <don@owensnet.com>
+     Don Owens <don@regexguy.com>
 
 CONTRIBUTORS
      David Bushong
 
 COPYRIGHT
-     Copyright (c) 2003-2005 Don Owens
+     Copyright (c) 2003-2006 Don Owens
 
      All rights reserved. This program is free software; you can
      redistribute it and/or modify it under the same terms as Perl
      itself.
 
 VERSION
-     0.03
+     0.04
 

@@ -3,7 +3,7 @@
 # Creation date: 2005-04-24 11:29:18
 # Authors: Don
 # Change log:
-# $Id: Makefile.PL,v 1.1 2005/04/24 19:35:24 don Exp $
+# $Id: Makefile.PL,v 1.3 2006/12/03 17:47:04 don Exp $
 
 use strict;
 
@@ -16,10 +16,12 @@ use strict;
                   DISTNAME => 'XML-Parser-Wrapper',
                   VERSION_FROM => 'lib/XML/Parser/Wrapper.pm',
                   ABSTRACT => 'Simple object wrapper around XML::Parser',
-                  AUTHOR => 'DON OWENS <don@owensnet.com>',
+                  AUTHOR => 'DON OWENS <don@regexguy.com>',
                   PM => { 'lib/XML/Parser/Wrapper.pm' => '$(INST_LIBDIR)/Wrapper.pm',
                         },
-                  dist => { COMPRESS => 'gzip -9f', SUFFIX => 'gz' },
+                  dist => { COMPRESS => 'gzip -9f', SUFFIX => 'gz',
+                            ZIP => '/usr/bin/zip', ZIPFLAGS => '-rl',
+                          },
                   DIR => [],
                   EXE_FILES => [],
                   PREREQ_PM => { 'XML::Parser' => 0 },

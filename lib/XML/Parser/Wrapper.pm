@@ -2,7 +2,7 @@
 # Creation date: 2005-04-23 22:39:14
 # Authors: Don
 # Change log:
-# $Id: Wrapper.pm,v 1.7 2005/05/16 14:29:10 don Exp $
+# $Id: Wrapper.pm,v 1.11 2006/12/03 17:47:04 don Exp $
 #
 # Copyright (c) 2005 Don Owens
 #
@@ -56,7 +56,7 @@ use XML::Parser ();
 
     use vars qw($VERSION);
     
-    $VERSION = '0.03';
+    $VERSION = '0.04';
 
 =pod
 
@@ -389,6 +389,112 @@ use XML::Parser ();
         return $text;
     }
 
+=pod
+
+=head2 simple_data()
+
+ Assume a data structure of hashes, arrays, and strings are
+ represented in the xml with no attributes.  Return the data
+ structure, leaving out the root tag.
+
+=cut
+    # Assume a data structure of hashes, arrays, and strings are
+    # represented in the xml with no attributes.  Return the data
+    # structure, leaving out the root tag.
+    sub simple_data {
+        my $self = shift;
+
+        return _convert_xml_node_to_perl($self);        
+    }
+
+    sub _convert_xml_node_to_perl {
+        my $node = shift;
+
+        my $new_data;
+        if ($node->is_text) {
+            $new_data = $node->text;
+        }
+        else {
+            $new_data = {};
+            my $ignore_whitespace_kids;
+            my $kids = $node->kids;
+
+            if (scalar(@$kids) == 0) {
+                return undef;
+            }
+            elsif (scalar(@$kids) == 1) {
+                if ($kids->[0]->is_text) {
+                    return $kids->[0]->text;
+                }
+            }
+            else {
+                $ignore_whitespace_kids = 1;
+            }
+
+            foreach my $kid (@$kids) {
+                if ($ignore_whitespace_kids and $kid->is_text and $kid->text =~ /^\s*$/) {
+                    next;
+                }
+
+                my $kid_data = _convert_xml_node_to_perl($kid);
+                my $node_name = $kid->name;
+                if (exists($new_data->{$node_name})) {
+                    unless (ref($new_data->{$node_name}) eq 'ARRAY') {
+                        $new_data->{$node_name} = [ $new_data->{$node_name} ];
+                    }
+                    push @{$new_data->{$node_name}}, $kid_data
+                }
+                else {
+                    $new_data->{$node_name} = $kid_data;
+                }
+            }
+
+        }
+
+        return $new_data;
+    }
+
+=pod
+ 
+=head2 dump_simple_data($data)
+
+ The reverse of simple_data() -- return xml representing the data
+ structure passed.
+
+=cut
+    # the reverse of simple_data() -- return xml representing the data structure provided
+    sub dump_simple_data {
+        my $self = shift;
+        my $data = shift;
+
+        my $xml = '';
+        if (ref($data) eq 'ARRAY') {
+            foreach my $element (@$data) {
+                $xml .= $self->dump_simple_data($element);
+            }
+        }
+        elsif (ref($data) eq 'HASH') {
+            foreach my $key (keys %$data) {
+                if (ref($data->{$key}) eq 'ARRAY') {
+                    foreach my $element ( @{$data->{$key}} ) {
+                        $xml .= '<' . $key . '>' . $self->dump_simple_data($element)
+                            . '</' . $key . '>';
+                    }
+                }
+                else {
+                    $xml .= '<' . $key . '>' . $self->dump_simple_data($data->{$key})
+                        . '</' . $key . '>';
+                }
+            }
+        }
+        else {
+            return $self->escape_xml($data);
+        }
+
+        return $xml;
+    }
+
+    
 }
 
 1;
@@ -402,7 +508,7 @@ __END__
 
 =head1 AUTHOR
 
- Don Owens <don@owensnet.com>
+ Don Owens <don@regexguy.com>
 
 =head1 CONTRIBUTORS
 
@@ -410,7 +516,7 @@ __END__
 
 =head1 COPYRIGHT
 
- Copyright (c) 2003-2005 Don Owens
+ Copyright (c) 2003-2006 Don Owens
 
  All rights reserved. This program is free software; you can
  redistribute it and/or modify it under the same terms as Perl
@@ -418,6 +524,6 @@ __END__
 
 =head1 VERSION
 
- 0.03
+ 0.04
 
 =cut
