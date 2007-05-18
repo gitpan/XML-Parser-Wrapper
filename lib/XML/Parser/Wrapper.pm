@@ -2,9 +2,9 @@
 # Creation date: 2005-04-23 22:39:14
 # Authors: Don
 # Change log:
-# $Id: Wrapper.pm,v 1.11 2006/12/03 17:47:04 don Exp $
+# $Id: Wrapper.pm,v 1.14 2007/05/18 03:17:06 don Exp $
 #
-# Copyright (c) 2005 Don Owens
+# Copyright (c) 2005,2007 Don Owens
 #
 # All rights reserved. This program is free software; you can
 # redistribute it and/or modify it under the same terms as Perl
@@ -56,7 +56,7 @@ use XML::Parser ();
 
     use vars qw($VERSION);
     
-    $VERSION = '0.04';
+    $VERSION = '0.05';
 
 =pod
 
@@ -128,7 +128,13 @@ use XML::Parser ();
 
 =cut
     sub is_text {
-        return shift()->[0] eq '0';
+        my $self = shift;
+        if (@$self and defined($self->[0])) {
+            return $self->[0] eq '0';
+        }
+        return;
+
+        # return $self->[0] eq '0';
     }
     *isText = \&is_text;
 
@@ -418,9 +424,10 @@ use XML::Parser ();
             $new_data = {};
             my $ignore_whitespace_kids;
             my $kids = $node->kids;
+            my $attr = $node->attributes;
 
             if (scalar(@$kids) == 0) {
-                return undef;
+                return ($attr and %$attr) ? { %$attr } : undef;
             }
             elsif (scalar(@$kids) == 1) {
                 if ($kids->[0]->is_text) {
@@ -516,7 +523,7 @@ __END__
 
 =head1 COPYRIGHT
 
- Copyright (c) 2003-2006 Don Owens
+ Copyright (c) 2003-2007 Don Owens
 
  All rights reserved. This program is free software; you can
  redistribute it and/or modify it under the same terms as Perl
@@ -524,6 +531,6 @@ __END__
 
 =head1 VERSION
 
- 0.04
+ 0.05
 
 =cut
