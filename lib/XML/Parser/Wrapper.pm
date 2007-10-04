@@ -2,7 +2,7 @@
 # Creation date: 2005-04-23 22:39:14
 # Authors: Don
 # Change log:
-# $Id: Wrapper.pm,v 1.14 2007/05/18 03:17:06 don Exp $
+# $Id: Wrapper.pm,v 1.16 2007/10/04 02:04:29 don Exp $
 #
 # Copyright (c) 2005,2007 Don Owens
 #
@@ -39,6 +39,11 @@
  my $head_elements = $root->elements('head2');
  my $test = $root->element('head2')->element('test_tag');
 
+ my $new_element = $root->add_child('test4', { attr1 => 'val1' });
+ $new_element->add_child('child', { myattr => 'stuff' }, 'bleh');
+
+ my $new_xml = $root->to_xml;
+
 =head1 DESCRIPTION
 
  XML::Parser::Wrapper provides a simple object around XML::Parser
@@ -56,7 +61,7 @@ use XML::Parser ();
 
     use vars qw($VERSION);
     
-    $VERSION = '0.05';
+    $VERSION = '0.06';
 
 =pod
 
@@ -205,6 +210,92 @@ use XML::Parser ();
 
 =pod
 
+=head2 to_xml()
+
+ Convert the node back to XML.  The ordering of attributes may
+ not be the same as in the original XML, and CDATA sections may
+ become plain text elements, or vice versa.
+
+ Aliases: toXml()
+
+=cut
+    sub to_xml {
+        my $self = shift;
+
+        if ($self->is_text) {
+            return $self->escape_xml($self->text);
+        }
+        
+        my $attributes = $self->attributes;
+        my $name = $self->name;
+        my $kids = $self->kids;
+
+        my $xml = qq{<$name};
+        if ($attributes and %$attributes) {
+            my @pairs;
+            foreach my $key (keys %$attributes) {
+                push @pairs, $key . '=' . '"' . $self->escape_xml($attributes->{$key}) . '"';
+            }
+            $xml .= ' ' . join(' ', @pairs);
+        }
+        if ($kids and @$kids) {
+            $xml .= '>' . join('', map { $_->to_xml } @$kids);
+            $xml .= "</$name>";
+        }
+        else {
+            $xml .= '/>';
+        }
+    }
+    *toXml = \&to_xml;
+
+=pod
+
+=head2 add_child($tag_name, \%attributes, $text_value)
+
+ Add a child to the current node.  If $text_value is defined, it
+ will be used as the text between the opening and closing tags.
+ The return value is the newly created node (XML::Parser::Wrapper
+ object) that can then in turn have child nodes added to it.
+
+    my $root = XML::Parser::Wrapper->new($input);
+
+    my $new_element = $root->add_child('test4', { attr1 => 'val1' });
+    $new_element->add_child('child', { myattr => 'stuff' }, 'bleh');
+
+ Aliases: addChild()
+
+=cut
+    sub add_child {
+        my ($self, $tag_name, $attr, $val) = @_;
+
+        unless (defined($tag_name)) {
+            return undef;
+        }
+
+        my $attr_to_add;
+        if ($attr and %$attr) {
+            $attr_to_add = $attr;
+        }
+        else {
+            $attr_to_add = { };
+        }
+
+        my $stuff = [ $attr_to_add ];
+        # my $to_add = [ $tag_name, [ $attr_to_add ] ];
+        if (defined($val)) {
+            # push @{$to_add->[1]}, '0', $val;
+            push @$stuff, '0', $val;
+        }
+
+        push @{$self->[1]}, $tag_name, $stuff;
+        # print Data::Dumper->Dump([ $self->[1] ], [ 'index_1' ]) . "\n";
+
+        return $self->new_element([ $tag_name, $stuff ]);
+    }
+    *addChild = \&add_child;
+
+=pod
+
 =head2 attributes(), attributes($name1, $name2, ...)
 
  If no arguments are given, returns a hash of attributes for this
@@ -244,6 +335,8 @@ use XML::Parser ();
     *attrs = \&attributes;
     *getAttributes = \&attributes;
     *getAttrs = \&attributes;
+    *get_attributes = \&attributes;
+    *get_attrs = \&attributes;
 
 =pod
 
@@ -531,6 +624,6 @@ __END__
 
 =head1 VERSION
 
- 0.05
+ 0.05a
 
 =cut

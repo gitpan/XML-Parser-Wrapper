@@ -23,6 +23,11 @@ SYNOPSIS
      my $head_elements = $root->elements('head2');
      my $test = $root->element('head2')->element('test_tag');
 
+     my $new_element = $root->add_child('test4', { attr1 => 'val1' });
+     $new_element->add_child('child', { myattr => 'stuff' }, 'bleh');
+
+     my $new_xml = $root->to_xml;
+
 DESCRIPTION
      XML::Parser::Wrapper provides a simple object around XML::Parser
      to make it more convenient to deal with the parse tree returned
@@ -63,6 +68,26 @@ METHODS
      before returning it.
 
      Aliases: content_xml(), getContentXml()
+
+  to_xml()
+     Convert the node back to XML.  The ordering of attributes may
+     not be the same as in the original XML, and CDATA sections may
+     become plain text elements, or vice versa.
+
+     Aliases: toXml()
+
+  add_child($tag_name, \%attributes, $text_value)
+     Add a child to the current node.  If $text_value is defined, it
+     will be used as the text between the opening and closing tags.
+     The return value is the newly created node (XML::Parser::Wrapper
+     object) that can then in turn have child nodes added to it.
+
+        my $root = XML::Parser::Wrapper->new($input);
+
+        my $new_element = $root->add_child('test4', { attr1 => 'val1' });
+        $new_element->add_child('child', { myattr => 'stuff' }, 'bleh');
+
+     Aliases: addChild()
 
   attributes(), attributes($name1, $name2, ...)
      If no arguments are given, returns a hash of attributes for this
@@ -130,5 +155,5 @@ COPYRIGHT
      itself.
 
 VERSION
-     0.05
+     0.05a
 
