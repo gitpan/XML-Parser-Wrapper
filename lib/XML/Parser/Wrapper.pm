@@ -2,7 +2,7 @@
 # Creation date: 2005-04-23 22:39:14
 # Authors: Don
 # Change log:
-# $Id: Wrapper.pm,v 1.16 2007/10/04 02:04:29 don Exp $
+# $Id: Wrapper.pm,v 1.17 2007/10/05 03:38:29 don Exp $
 #
 # Copyright (c) 2005,2007 Don Owens
 #
@@ -40,6 +40,10 @@
  my $test = $root->element('head2')->element('test_tag');
 
  my $new_element = $root->add_child('test4', { attr1 => 'val1' });
+
+ my $kid = $root->update_kid('root_child', { attr2 => 'stuff2' }, 'blah');
+ $kid->update_node({ new_attr => 'new_stuff' });
+
  $new_element->add_child('child', { myattr => 'stuff' }, 'bleh');
 
  my $new_xml = $root->to_xml;
@@ -61,7 +65,7 @@ use XML::Parser ();
 
     use vars qw($VERSION);
     
-    $VERSION = '0.06';
+    $VERSION = '0.07';
 
 =pod
 
@@ -212,7 +216,7 @@ use XML::Parser ();
 
 =head2 to_xml()
 
- Convert the node back to XML.  The ordering of attributes may
+ Converts the node back to XML.  The ordering of attributes may
  not be the same as in the original XML, and CDATA sections may
  become plain text elements, or vice versa.
 
@@ -250,22 +254,25 @@ use XML::Parser ();
 
 =pod
 
-=head2 add_child($tag_name, \%attributes, $text_value)
+=head2 add_kid($tag_name, \%attributes, $text_value)
 
- Add a child to the current node.  If $text_value is defined, it
+ Adds a child to the current node.  If $text_value is defined, it
  will be used as the text between the opening and closing tags.
  The return value is the newly created node (XML::Parser::Wrapper
  object) that can then in turn have child nodes added to it.
+ This is useful for loading and XML file, adding an element, then
+ writing the modified XML back out.  Note that all parameters
+ must be valid UTF-8.
 
     my $root = XML::Parser::Wrapper->new($input);
 
     my $new_element = $root->add_child('test4', { attr1 => 'val1' });
     $new_element->add_child('child', { myattr => 'stuff' }, 'bleh');
 
- Aliases: addChild()
+ Aliases: addKid(), add_child, addChild()
 
 =cut
-    sub add_child {
+    sub add_kid {
         my ($self, $tag_name, $attr, $val) = @_;
 
         unless (defined($tag_name)) {
@@ -292,7 +299,64 @@ use XML::Parser ();
 
         return $self->new_element([ $tag_name, $stuff ]);
     }
-    *addChild = \&add_child;
+    *addChild = \&add_kid;
+    *add_child = \&add_kid;
+    *addKid = \&add_kid;
+
+=pod
+
+=head2 update_node(\%attrs, $text_val)
+
+ Updates the node, setting the attributes to the ones provided in
+ %attrs, and sets the text child node to $text_val if it is
+ defined.  Note that this removes all child nodes.
+
+ Aliases: updateNode()
+
+=cut
+    sub update_node {
+        my $self = shift;
+        my $attrs = shift;
+        my $text_val = shift;
+
+        my $stuff = [ $attrs ];
+        if (defined($text_val)) {
+            push @$stuff, '0', $text_val;
+        }
+
+        @{$self->[1]} = @$stuff;
+
+        return $self;
+    }
+    *updateNode = \&update_node;
+
+=pod
+
+=head2 update_kid($tag_name, \%attrs, $text_val)
+
+ Calls update_node() on the first child node with name $tag_name
+ if it exists.  If there is no such child node, one is created by
+ calling add_kid().
+
+ Aliases: updateKid(), update_child(), updateChild()
+
+=cut
+    sub update_kid {
+        my ($self, $tag_name, $attrs, $text_val) = @_;
+
+        my $kid = $self->kid($tag_name);
+        if ($kid) {
+            $kid->update_node($attrs, $text_val);
+            return $kid;
+        }
+
+        $kid = $self->add_kid($tag_name, $attrs, $text_val);
+        return $kid;
+    }
+    *updateKid = \&update_kid;
+    *update_child = \&update_kid;
+    *updateChild = \&update_kid;
+
 
 =pod
 
@@ -624,6 +688,6 @@ __END__
 
 =head1 VERSION
 
- 0.05a
+ 0.07
 
 =cut
