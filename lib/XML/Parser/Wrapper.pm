@@ -2,7 +2,7 @@
 # Creation date: 2005-04-23 22:39:14
 # Authors: Don
 # Change log:
-# $Id: Wrapper.pm,v 1.17 2007/10/05 03:38:29 don Exp $
+# $Id: Wrapper.pm,v 1.18 2007/10/31 04:18:35 don Exp $
 #
 # Copyright (c) 2005,2007 Don Owens
 #
@@ -16,6 +16,25 @@
 
  XML::Parser::Wrapper - A simple object wrapper around XML::Parser
 
+=cut
+
+use strict;
+use XML::Parser ();
+
+{   package XML::Parser::Wrapper;
+
+    use vars qw($VERSION);
+    
+    $VERSION = '0.08';
+
+=pod
+
+=head1 VERSION
+
+ 0.08
+
+=cut
+
 =head1 SYNOPSIS
 
  use XML::Parser::Wrapper;
@@ -24,6 +43,9 @@
  my $root = XML::Parser::Wrapper->new($xml);
 
  my $root2 = XML::Parser::Wrapper->new({ file => '/tmp/test.xml' });
+
+ my $parser = XML::Parser::Wrapper->new;
+ my $root3 = $parser->parse({ file => '/tmp/test.xml' });
 
  my $root_tag_name = $root->name;
  my $roots_children = $root->elements;
@@ -56,24 +78,14 @@
 
 =head1 METHODS
 
-=cut
-
-use strict;
-use XML::Parser ();
-
-{   package XML::Parser::Wrapper;
-
-    use vars qw($VERSION);
-    
-    $VERSION = '0.07';
-
-=pod
-
-=head2 new($xml), new({ file => $filename })
+=head2 new(), new($xml), new({ file => $filename })
 
  Calls XML::Parser to parse the given XML and returns a new
  XML::Parser::Wrapper object using the parse tree output from
  XML::Parser.
+
+ If no parameters are passed, a reusable object is returned
+ -- see the parse() method.
 
 =cut
 
@@ -87,8 +99,38 @@ use XML::Parser ();
     #          ]
     sub new {
         my $proto = shift;
-        my $arg = shift;
+        my $self = $proto->_new;
+
+        unless (scalar(@_) >= 1) {
+            return $self;
+        }
+
+        return $self->parse(@_);        
+    }
+
+    sub _new {
+        my $class = shift;
         my $parser = XML::Parser->new(Style => 'Tree');
+
+        my $self = bless { parser => $parser }, ref($class) || $class;
+
+        return $self;
+    }
+
+=pod
+
+=head1 parse($xml), parse({ file => $filename })
+
+ Parses the given XML and returns a new XML::Parser::Wrapper
+ object using the parse tree output from XML::Parser.
+
+=cut
+    sub parse {
+        my $self = shift;
+        my $arg = shift;
+
+        my $parser = $self->{parser};
+
         my $tree = [];
         if (ref($arg) eq 'HASH') {
             if (exists($arg->{file})) {
@@ -97,8 +139,10 @@ use XML::Parser ();
         } else {
             $tree = $parser->parse($arg);
         }
-        my $self = bless $tree, ref($proto) || $proto;
-        return $self;
+
+        my $obj = bless $tree, ref($self);
+        
+        return $obj;
     }
 
     sub new_element {
@@ -251,6 +295,25 @@ use XML::Parser ();
         }
     }
     *toXml = \&to_xml;
+
+    sub new_document {
+        my ($class, $root_tag, $attr, $val) = @_;
+
+        $attr = { } unless $attr;
+
+        my $data = [$root_tag, [ { %$attr } ] ];
+        
+        return bless $data, ref($class) || $class;
+    }
+
+    sub new_from_tree {
+        my $class = shift;
+        my $tree = shift;
+        
+        my $obj = bless $tree, ref($class) || $class;
+        
+        return $obj;
+    }
 
 =pod
 
@@ -540,14 +603,26 @@ use XML::Parser ();
         return $text;
     }
 
+#     our $Escape_Map = { '&' => '&amp;',
+#                         '<' => '&lt;',
+#                         '>' => '&gt;',
+#                         '"' => '&quot;',
+#                         "'" => '&#39;',
+#                       };
+
     sub escape_xml {
         my ($self, $text) = @_;
         return undef unless defined $text;
+
+        # FIXME: benchmark this and test fully
+#         $text =~ s/([&<>"'])/$Escape_Map->{$1}/eg;
+#         return $text;
         
         $text =~ s/\&/\&amp;/g;
         $text =~ s/</\&lt;/g;
         $text =~ s/>/\&gt;/g;
         $text =~ s/\"/\&quot;/g;
+        $text =~ s/\'/\&#39;/g;
 
         return $text;
     }
@@ -685,9 +760,5 @@ __END__
  All rights reserved. This program is free software; you can
  redistribute it and/or modify it under the same terms as Perl
  itself.
-
-=head1 VERSION
-
- 0.07
 
 =cut

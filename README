@@ -1,6 +1,9 @@
 NAME
      XML::Parser::Wrapper - A simple object wrapper around XML::Parser
 
+VERSION
+     0.08
+
 SYNOPSIS
      use XML::Parser::Wrapper;
 
@@ -8,6 +11,9 @@ SYNOPSIS
      my $root = XML::Parser::Wrapper->new($xml);
 
      my $root2 = XML::Parser::Wrapper->new({ file => '/tmp/test.xml' });
+
+     my $parser = XML::Parser::Wrapper->new;
+     my $root3 = $parser->parse({ file => '/tmp/test.xml' });
 
      my $root_tag_name = $root->name;
      my $roots_children = $root->elements;
@@ -38,10 +44,17 @@ DESCRIPTION
      by XML::Parser.
 
 METHODS
-  new($xml), new({ file => $filename })
+  new(), new($xml), new({ file => $filename })
      Calls XML::Parser to parse the given XML and returns a new
      XML::Parser::Wrapper object using the parse tree output from
      XML::Parser.
+
+     If no parameters are passed, a reusable object is returned
+     -- see the parse() method.
+
+parse($xml), parse({ file => $filename })
+     Parses the given XML and returns a new XML::Parser::Wrapper
+     object using the parse tree output from XML::Parser.
 
   name()
      Returns the name of the element represented by this object.
@@ -174,7 +187,4 @@ COPYRIGHT
      All rights reserved. This program is free software; you can
      redistribute it and/or modify it under the same terms as Perl
      itself.
-
-VERSION
-     0.07
 
