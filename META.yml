@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                XML-Parser-Wrapper
-version:             0.08
+version:             0.09
 abstract:            Simple object wrapper around XML::Parser
 license:             ~
 generated_by:        ExtUtils::MakeMaker version 6.36

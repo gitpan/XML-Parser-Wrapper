@@ -2,7 +2,7 @@ NAME
      XML::Parser::Wrapper - A simple object wrapper around XML::Parser
 
 VERSION
-     0.08
+     0.09
 
 SYNOPSIS
      use XML::Parser::Wrapper;
@@ -14,6 +14,12 @@ SYNOPSIS
 
      my $parser = XML::Parser::Wrapper->new;
      my $root3 = $parser->parse({ file => '/tmp/test.xml' });
+
+     my $root4 = XML::Parser::Wrapper->new_sax_parser({ class => 'XML::LibXML::SAX',
+                                                        handler => $handler,
+                                                        start_tag => 'stuff',
+                                                        # start_depth => 2,
+                                                      }, $xml);
 
      my $root_tag_name = $root->name;
      my $roots_children = $root->elements;
@@ -39,140 +45,160 @@ SYNOPSIS
      my $new_xml = $root->to_xml;
 
 DESCRIPTION
-     XML::Parser::Wrapper provides a simple object around XML::Parser
-     to make it more convenient to deal with the parse tree returned
-     by XML::Parser.
+    XML::Parser::Wrapper provides a simple object around XML::Parser to make
+    it more convenient to deal with the parse tree returned by XML::Parser.
 
 METHODS
   new(), new($xml), new({ file => $filename })
-     Calls XML::Parser to parse the given XML and returns a new
-     XML::Parser::Wrapper object using the parse tree output from
-     XML::Parser.
+    Calls XML::Parser to parse the given XML and returns a new
+    XML::Parser::Wrapper object using the parse tree output from
+    XML::Parser.
 
-     If no parameters are passed, a reusable object is returned
-     -- see the parse() method.
+    If no parameters are passed, a reusable object is returned -- see the
+    parse() method.
 
-parse($xml), parse({ file => $filename })
-     Parses the given XML and returns a new XML::Parser::Wrapper
-     object using the parse tree output from XML::Parser.
+  new_sax_parser(\%params), new_sax_parser(\%params, $xml), new_sax_parser(\%params, { file => $filename })
+    Experimental support for SAX parsers based on XML::SAX::Base. Valid
+    parameters are
+
+   class
+     SAX parser class (defaults to XML::LibXML::SAX)
+
+   start_tag
+    SAX tag name starting the section you are looking for if stream parsing.
+
+   handler
+    Handler function to call when stream parsing.
+
+   start_depth
+    Use this option for picking up sections that occur inside another
+    section with the same tag name. E.g., if you want to get the inside
+    "foo" section in this example:
+
+     <doc><foo><bar><foo>here</foo></bar></foo></doc>
+
+    instead of the one at the top level, set start_depth to 2. This is the
+    number of times your start_tag occurs in the hierarchy before you get to
+    the section you want (not the tag depth).
+
+  parse($xml), parse({ file => $filename })
+    Parses the given XML and returns a new XML::Parser::Wrapper object using
+    the parse tree output from XML::Parser.
 
   name()
-     Returns the name of the element represented by this object.
+    Returns the name of the element represented by this object.
 
-     Aliases: tag(), getName(), getTag()
+    Aliases: tag(), getName(), getTag()
 
   is_text()
-     Returns a true value if this element is a text element, false
-     otherwise.
+    Returns a true value if this element is a text element, false otherwise.
 
-     Aliases: isText()
+    Aliases: isText()
 
   text()
-     If this element is a text element, the text is returned.
-     Otherwise, return the text from the first child text element, or
-     undef if there is not one.
+    If this element is a text element, the text is returned. Otherwise,
+    return the text from the first child text element, or undef if there is
+    not one.
 
-     Aliases: content(), getText(), getContent()
+    Aliases: content(), getText(), getContent()
 
   html()
-     Like text(), except HTML-escape the text (escape &, <, >, and ")
-     before returning it.
+    Like text(), except HTML-escape the text (escape &, <, >, and ") before
+    returning it.
 
-     Aliases: content_html(), getContentHtml()
+    Aliases: content_html(), getContentHtml()
 
   xml()
-     Like text(), except XML-escape the text (escape &, <, >, and ")
-     before returning it.
+    Like text(), except XML-escape the text (escape &, <, >, and ") before
+    returning it.
 
-     Aliases: content_xml(), getContentXml()
+    Aliases: content_xml(), getContentXml()
 
   to_xml()
-     Converts the node back to XML.  The ordering of attributes may
-     not be the same as in the original XML, and CDATA sections may
-     become plain text elements, or vice versa.
+    Converts the node back to XML. The ordering of attributes may not be the
+    same as in the original XML, and CDATA sections may become plain text
+    elements, or vice versa.
 
-     Aliases: toXml()
+    Aliases: toXml()
 
   add_kid($tag_name, \%attributes, $text_value)
-     Adds a child to the current node.  If $text_value is defined, it
-     will be used as the text between the opening and closing tags.
-     The return value is the newly created node (XML::Parser::Wrapper
-     object) that can then in turn have child nodes added to it.
-     This is useful for loading and XML file, adding an element, then
-     writing the modified XML back out.  Note that all parameters
-     must be valid UTF-8.
+    Adds a child to the current node. If $text_value is defined, it will be
+    used as the text between the opening and closing tags. The return value
+    is the newly created node (XML::Parser::Wrapper object) that can then in
+    turn have child nodes added to it. This is useful for loading and XML
+    file, adding an element, then writing the modified XML back out. Note
+    that all parameters must be valid UTF-8.
 
         my $root = XML::Parser::Wrapper->new($input);
 
         my $new_element = $root->add_child('test4', { attr1 => 'val1' });
         $new_element->add_child('child', { myattr => 'stuff' }, 'bleh');
 
-     Aliases: addKid(), add_child, addChild()
+    Aliases: addKid(), add_child, addChild()
 
   update_node(\%attrs, $text_val)
-     Updates the node, setting the attributes to the ones provided in
-     %attrs, and sets the text child node to $text_val if it is
-     defined.  Note that this removes all child nodes.
+    Updates the node, setting the attributes to the ones provided in %attrs,
+    and sets the text child node to $text_val if it is defined. Note that
+    this removes all child nodes.
 
-     Aliases: updateNode()
+    Aliases: updateNode()
 
   update_kid($tag_name, \%attrs, $text_val)
-     Calls update_node() on the first child node with name $tag_name
-     if it exists.  If there is no such child node, one is created by
-     calling add_kid().
+    Calls update_node() on the first child node with name $tag_name if it
+    exists. If there is no such child node, one is created by calling
+    add_kid().
 
-     Aliases: updateKid(), update_child(), updateChild()
+    Aliases: updateKid(), update_child(), updateChild()
 
   attributes(), attributes($name1, $name2, ...)
-     If no arguments are given, returns a hash of attributes for this
-     element.  If arguments are present, an array of corresponding
-     attribute values is returned.  Returns an array in array context
-     and an array reference if called in scalar context.
+    If no arguments are given, returns a hash of attributes for this
+    element. If arguments are present, an array of corresponding attribute
+    values is returned. Returns an array in array context and an array
+    reference if called in scalar context.
 
-     E.g.,
+    E.g.,
 
          <field name="foo" id="42">bar</field>
 
          my ($name, $id) = $element->attributes('name', 'id');
 
-     Aliases: attrs(), getAttributes(), getAttrs()
+    Aliases: attrs(), getAttributes(), getAttrs()
 
   attribute($name)
-     Similar to attributes(), but only returns one value.
+    Similar to attributes(), but only returns one value.
 
-     Aliases: attr(), getAttribute(), getAttr()
+    Aliases: attr(), getAttribute(), getAttr()
 
   elements(), elements($element_name)
-     Returns an array of child elements.  If $element_name is passed,
-     a list of child elements with that name is returned.
+    Returns an array of child elements. If $element_name is passed, a list
+    of child elements with that name is returned.
 
-     Aliases: getElements(), kids(), getKids(), children(), getChildren()
+    Aliases: getElements(), kids(), getKids(), children(), getChildren()
 
   first_element(), first_element($element_name)
-     Returns the first child element of this element.  If
-     $element_name is passed, returns the first child element with
-     that name is returned.
+    Returns the first child element of this element. If $element_name is
+    passed, returns the first child element with that name is returned.
 
-     Aliases: getFirstElement(), kid(), first_kid()
+    Aliases: getFirstElement(), kid(), first_kid()
 
   first_element_if($element_name)
-     Like first_element(), except if there is no corresponding child,
-     return an object that will work instead of undef.  This allows
-     for reliable chaining, e.g.
+    Like first_element(), except if there is no corresponding child, return
+    an object that will work instead of undef. This allows for reliable
+    chaining, e.g.
 
      my $class = $root->kid_if('field')->kid_if('field')->kid_if('element')
                   ->kid_if('field')->attribute('class');
 
-     Aliases: getFirstElementIf(), kidIf(), first_kid_if()
+    Aliases: getFirstElementIf(), kidIf(), first_kid_if()
 
   simple_data()
-     Assume a data structure of hashes, arrays, and strings are
-     represented in the xml with no attributes.  Return the data
-     structure, leaving out the root tag.
+    Assume a data structure of hashes, arrays, and strings are represented
+    in the xml with no attributes. Return the data structure, leaving out
+    the root tag.
 
   dump_simple_data($data)
-     The reverse of simple_data() -- return xml representing the data
-     structure passed.
+    The reverse of simple_data() -- return xml representing the data
+    structure passed.
 
 EXAMPLES
 AUTHOR

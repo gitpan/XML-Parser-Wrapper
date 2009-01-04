@@ -3,6 +3,9 @@ README
 INSTALL
 Makefile.PL
 lib/XML/Parser/Wrapper.pm
+lib/XML/Parser/Wrapper/SAXHandler.pm
 t/00use.t
 t/01element.t
+t/02sax.t
+t/data/sax_test.xml
 META.yml                                 Module meta-data (added by MakeMaker)

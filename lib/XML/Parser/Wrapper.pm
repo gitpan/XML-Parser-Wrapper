@@ -2,9 +2,9 @@
 # Creation date: 2005-04-23 22:39:14
 # Authors: Don
 # Change log:
-# $Id: Wrapper.pm,v 1.18 2007/10/31 04:18:35 don Exp $
+# $Id: Wrapper.pm,v 1.21 2009/01/04 23:42:01 don Exp $
 #
-# Copyright (c) 2005,2007 Don Owens
+# Copyright (c) 2005-2008 Don Owens
 #
 # All rights reserved. This program is free software; you can
 # redistribute it and/or modify it under the same terms as Perl
@@ -21,17 +21,19 @@
 use strict;
 use XML::Parser ();
 
+use XML::Parser::Wrapper::SAXHandler;
+
 {   package XML::Parser::Wrapper;
 
     use vars qw($VERSION);
     
-    $VERSION = '0.08';
+    $VERSION = '0.09';
 
 =pod
 
 =head1 VERSION
 
- 0.08
+ 0.09
 
 =cut
 
@@ -46,6 +48,12 @@ use XML::Parser ();
 
  my $parser = XML::Parser::Wrapper->new;
  my $root3 = $parser->parse({ file => '/tmp/test.xml' });
+
+ my $root4 = XML::Parser::Wrapper->new_sax_parser({ class => 'XML::LibXML::SAX',
+                                                    handler => $handler,
+                                                    start_tag => 'stuff',
+                                                    # start_depth => 2,
+                                                  }, $xml);
 
  my $root_tag_name = $root->name;
  my $roots_children = $root->elements;
@@ -72,20 +80,20 @@ use XML::Parser ();
 
 =head1 DESCRIPTION
 
- XML::Parser::Wrapper provides a simple object around XML::Parser
- to make it more convenient to deal with the parse tree returned
- by XML::Parser.
+XML::Parser::Wrapper provides a simple object around XML::Parser
+to make it more convenient to deal with the parse tree returned
+by XML::Parser.
 
 =head1 METHODS
 
 =head2 new(), new($xml), new({ file => $filename })
 
- Calls XML::Parser to parse the given XML and returns a new
- XML::Parser::Wrapper object using the parse tree output from
- XML::Parser.
+Calls XML::Parser to parse the given XML and returns a new
+XML::Parser::Wrapper object using the parse tree output from
+XML::Parser.
 
- If no parameters are passed, a reusable object is returned
- -- see the parse() method.
+If no parameters are passed, a reusable object is returned
+-- see the parse() method.
 
 =cut
 
@@ -119,10 +127,71 @@ use XML::Parser ();
 
 =pod
 
-=head1 parse($xml), parse({ file => $filename })
+=head2 new_sax_parser(\%params), new_sax_parser(\%params, $xml), new_sax_parser(\%params, { file => $filename })
 
- Parses the given XML and returns a new XML::Parser::Wrapper
- object using the parse tree output from XML::Parser.
+Experimental support for SAX parsers based on XML::SAX::Base.  Valid parameters are
+
+=head3 class
+
+ SAX parser class (defaults to XML::LibXML::SAX)
+
+=head3 start_tag
+
+SAX tag name starting the section you are looking for if stream parsing.
+
+=head3 handler
+
+Handler function to call when stream parsing.
+
+=head3 start_depth
+
+Use this option for picking up sections that occur inside another
+section with the same tag name.  E.g., if you want to get the
+inside "foo" section in this example:
+
+ <doc><foo><bar><foo>here</foo></bar></foo></doc>
+
+instead of the one at the top level, set start_depth to 2.  This
+is the number of times your start_tag occurs in the hierarchy
+before you get to the section you want (not the tag depth).
+
+=cut
+    sub new_sax_parser {
+        my $class = shift;
+        my $parse_spec = shift || { };
+
+        my $parser_class = $parse_spec->{class} || 'XML::LibXML::SAX';
+        my $start_tag = $parse_spec->{start_tag};
+        my $user_cb = $parse_spec->{handler};
+        my $start_depth = $parse_spec->{start_depth};
+
+        my $self = bless { parser_class => $parser_class, handler => $user_cb,
+                           start_tag => $start_tag,
+                         },
+            ref($class) || $class;
+
+        eval "require $parser_class;";
+
+        my $sax_handler = XML::Parser::Wrapper::SAXHandler->new({ start_tag => $start_tag,
+                                                                  handler => $user_cb,
+                                                                  start_depth => $start_depth,
+                                                                });
+        $self->{parser} = $parser_class->new({ Handler => $sax_handler });
+        $self->{sax_handler} = $sax_handler;
+
+        unless (scalar(@_) >= 1) {
+            return $self;
+        }
+
+        return $self->parse(@_);
+    }
+
+=pod
+
+=head2 parse($xml), parse({ file => $filename })
+
+Parses the given XML and returns a new XML::Parser::Wrapper
+object using the parse tree output from XML::Parser.
 
 =cut
     sub parse {
@@ -134,12 +203,26 @@ use XML::Parser ();
         my $tree = [];
         if (ref($arg) eq 'HASH') {
             if (exists($arg->{file})) {
-                $tree = $parser->parsefile($arg->{file});
+                if ($self->{sax_handler}) {
+                    $self->{parser}->parse(Source => { SystemId => $arg->{file} });
+                    $tree = $self->{sax_handler}->get_tree;
+                }
+                else {
+                    $tree = $parser->parsefile($arg->{file});
+                }
             }
         } else {
-            $tree = $parser->parse($arg);
+            if ($self->{sax_handler}) {
+                $self->{parser}->parse(Source => { String => $arg });
+                $tree = $self->{sax_handler}->get_tree;
+            }
+            else {
+                $tree = $parser->parse($arg);
+            }
         }
 
+        return undef unless defined($tree) and ref($tree);
+        
         my $obj = bless $tree, ref($self);
         
         return $obj;
@@ -156,9 +239,9 @@ use XML::Parser ();
 
 =head2 name()
 
- Returns the name of the element represented by this object.
+Returns the name of the element represented by this object.
 
- Aliases: tag(), getName(), getTag()
+Aliases: tag(), getName(), getTag()
 
 =cut
     sub tag {
@@ -174,10 +257,10 @@ use XML::Parser ();
 
 =head2 is_text()
 
- Returns a true value if this element is a text element, false
- otherwise.
+Returns a true value if this element is a text element, false
+otherwise.
 
- Aliases: isText()
+Aliases: isText()
 
 =cut
     sub is_text {
@@ -195,11 +278,11 @@ use XML::Parser ();
 
 =head2 text()
 
- If this element is a text element, the text is returned.
- Otherwise, return the text from the first child text element, or
- undef if there is not one.
+If this element is a text element, the text is returned.
+Otherwise, return the text from the first child text element, or
+undef if there is not one.
 
- Aliases: content(), getText(), getContent()
+Aliases: content(), getText(), getContent()
 
 =cut
     sub text {
@@ -224,10 +307,10 @@ use XML::Parser ();
 
 =head2 html()
 
- Like text(), except HTML-escape the text (escape &, <, >, and ")
- before returning it.
+Like text(), except HTML-escape the text (escape &, <, >, and ")
+before returning it.
 
- Aliases: content_html(), getContentHtml()
+Aliases: content_html(), getContentHtml()
 
 =cut
     sub html {
@@ -242,10 +325,10 @@ use XML::Parser ();
 
 =head2 xml()
 
- Like text(), except XML-escape the text (escape &, <, >, and ")
- before returning it.
+Like text(), except XML-escape the text (escape &, <, >, and ")
+before returning it.
 
- Aliases: content_xml(), getContentXml()
+Aliases: content_xml(), getContentXml()
 
 =cut
     sub xml {
@@ -260,11 +343,11 @@ use XML::Parser ();
 
 =head2 to_xml()
 
- Converts the node back to XML.  The ordering of attributes may
- not be the same as in the original XML, and CDATA sections may
- become plain text elements, or vice versa.
+Converts the node back to XML.  The ordering of attributes may
+not be the same as in the original XML, and CDATA sections may
+become plain text elements, or vice versa.
 
- Aliases: toXml()
+Aliases: toXml()
 
 =cut
     sub to_xml {
@@ -319,20 +402,20 @@ use XML::Parser ();
 
 =head2 add_kid($tag_name, \%attributes, $text_value)
 
- Adds a child to the current node.  If $text_value is defined, it
- will be used as the text between the opening and closing tags.
- The return value is the newly created node (XML::Parser::Wrapper
- object) that can then in turn have child nodes added to it.
- This is useful for loading and XML file, adding an element, then
- writing the modified XML back out.  Note that all parameters
- must be valid UTF-8.
+Adds a child to the current node.  If $text_value is defined, it
+will be used as the text between the opening and closing tags.
+The return value is the newly created node (XML::Parser::Wrapper
+object) that can then in turn have child nodes added to it.
+This is useful for loading and XML file, adding an element, then
+writing the modified XML back out.  Note that all parameters
+must be valid UTF-8.
 
     my $root = XML::Parser::Wrapper->new($input);
 
     my $new_element = $root->add_child('test4', { attr1 => 'val1' });
     $new_element->add_child('child', { myattr => 'stuff' }, 'bleh');
 
- Aliases: addKid(), add_child, addChild()
+Aliases: addKid(), add_child, addChild()
 
 =cut
     sub add_kid {
@@ -370,11 +453,11 @@ use XML::Parser ();
 
 =head2 update_node(\%attrs, $text_val)
 
- Updates the node, setting the attributes to the ones provided in
- %attrs, and sets the text child node to $text_val if it is
- defined.  Note that this removes all child nodes.
+Updates the node, setting the attributes to the ones provided in
+%attrs, and sets the text child node to $text_val if it is
+defined.  Note that this removes all child nodes.
 
- Aliases: updateNode()
+Aliases: updateNode()
 
 =cut
     sub update_node {
@@ -397,11 +480,11 @@ use XML::Parser ();
 
 =head2 update_kid($tag_name, \%attrs, $text_val)
 
- Calls update_node() on the first child node with name $tag_name
- if it exists.  If there is no such child node, one is created by
- calling add_kid().
+Calls update_node() on the first child node with name $tag_name
+if it exists.  If there is no such child node, one is created by
+calling add_kid().
 
- Aliases: updateKid(), update_child(), updateChild()
+Aliases: updateKid(), update_child(), updateChild()
 
 =cut
     sub update_kid {
@@ -425,18 +508,18 @@ use XML::Parser ();
 
 =head2 attributes(), attributes($name1, $name2, ...)
 
- If no arguments are given, returns a hash of attributes for this
- element.  If arguments are present, an array of corresponding
- attribute values is returned.  Returns an array in array context
- and an array reference if called in scalar context.
+If no arguments are given, returns a hash of attributes for this
+element.  If arguments are present, an array of corresponding
+attribute values is returned.  Returns an array in array context
+and an array reference if called in scalar context.
 
- E.g.,
+E.g.,
 
      <field name="foo" id="42">bar</field>
 
      my ($name, $id) = $element->attributes('name', 'id');
 
- Aliases: attrs(), getAttributes(), getAttrs()
+Aliases: attrs(), getAttributes(), getAttrs()
 
 =cut
     sub attributes {
@@ -469,9 +552,9 @@ use XML::Parser ();
 
 =head2 attribute($name)
 
- Similar to attributes(), but only returns one value.
+Similar to attributes(), but only returns one value.
 
- Aliases: attr(), getAttribute(), getAttr()
+Aliases: attr(), getAttribute(), getAttr()
 
 =cut
     sub attribute {
@@ -487,10 +570,10 @@ use XML::Parser ();
 
 =head2 elements(), elements($element_name)
 
- Returns an array of child elements.  If $element_name is passed,
- a list of child elements with that name is returned.
+Returns an array of child elements.  If $element_name is passed,
+a list of child elements with that name is returned.
 
- Aliases: getElements(), kids(), getKids(), children(), getChildren()
+Aliases: getElements(), kids(), getKids(), children(), getChildren()
 
 =cut
     sub kids {
@@ -527,11 +610,11 @@ use XML::Parser ();
 
 =head2 first_element(), first_element($element_name)
 
- Returns the first child element of this element.  If
- $element_name is passed, returns the first child element with
- that name is returned.
+Returns the first child element of this element.  If
+$element_name is passed, returns the first child element with
+that name is returned.
 
- Aliases: getFirstElement(), kid(), first_kid()
+Aliases: getFirstElement(), kid(), first_kid()
 
 =cut
     sub kid {
@@ -567,14 +650,14 @@ use XML::Parser ();
 
 =head2 first_element_if($element_name)
 
- Like first_element(), except if there is no corresponding child,
- return an object that will work instead of undef.  This allows
- for reliable chaining, e.g.
+Like first_element(), except if there is no corresponding child,
+return an object that will work instead of undef.  This allows
+for reliable chaining, e.g.
 
  my $class = $root->kid_if('field')->kid_if('field')->kid_if('element')
               ->kid_if('field')->attribute('class');
 
- Aliases: getFirstElementIf(), kidIf(), first_kid_if()
+Aliases: getFirstElementIf(), kidIf(), first_kid_if()
 
 =cut
     sub kid_if {
@@ -621,7 +704,7 @@ use XML::Parser ();
         $text =~ s/\&/\&amp;/g;
         $text =~ s/</\&lt;/g;
         $text =~ s/>/\&gt;/g;
-        $text =~ s/\"/\&quot;/g;
+        $text =~ s/\"/\&#34;/g;
         $text =~ s/\'/\&#39;/g;
 
         return $text;
@@ -631,9 +714,9 @@ use XML::Parser ();
 
 =head2 simple_data()
 
- Assume a data structure of hashes, arrays, and strings are
- represented in the xml with no attributes.  Return the data
- structure, leaving out the root tag.
+Assume a data structure of hashes, arrays, and strings are
+represented in the xml with no attributes.  Return the data
+structure, leaving out the root tag.
 
 =cut
     # Assume a data structure of hashes, arrays, and strings are
@@ -697,8 +780,8 @@ use XML::Parser ();
  
 =head2 dump_simple_data($data)
 
- The reverse of simple_data() -- return xml representing the data
- structure passed.
+The reverse of simple_data() -- return xml representing the data
+structure passed.
 
 =cut
     # the reverse of simple_data() -- return xml representing the data structure provided
