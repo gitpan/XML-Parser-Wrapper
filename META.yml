@@ -1,14 +1,14 @@
 --- #YAML:1.0
 name:                XML-Parser-Wrapper
-version:             0.09
+version:             0.10
 abstract:            Simple object wrapper around XML::Parser
 license:             ~
-generated_by:        ExtUtils::MakeMaker version 6.36
+author:              
+    - DON OWENS <don@regexguy.com>
+generated_by:        ExtUtils::MakeMaker version 6.42
 distribution_type:   module
 requires:     
     XML::Parser:                   0
 meta-spec:
-    url:     http://module-build.sourceforge.net/META-spec-v1.2.html
-    version: 1.2
-author:
-    - DON OWENS <don@regexguy.com>
+    url:     http://module-build.sourceforge.net/META-spec-v1.3.html
+    version: 1.3

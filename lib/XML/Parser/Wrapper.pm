@@ -1,10 +1,9 @@
 # -*-perl-*-
 # Creation date: 2005-04-23 22:39:14
 # Authors: Don
-# Change log:
-# $Id: Wrapper.pm,v 1.21 2009/01/04 23:42:01 don Exp $
+# $Revision: 308 $
 #
-# Copyright (c) 2005-2008 Don Owens
+# Copyright (c) 2005-2009 Don Owens
 #
 # All rights reserved. This program is free software; you can
 # redistribute it and/or modify it under the same terms as Perl
@@ -27,13 +26,13 @@ use XML::Parser::Wrapper::SAXHandler;
 
     use vars qw($VERSION);
     
-    $VERSION = '0.09';
+    $VERSION = '0.10';
 
 =pod
 
 =head1 VERSION
 
- 0.09
+ 0.10
 
 =cut
 
@@ -68,6 +67,8 @@ use XML::Parser::Wrapper::SAXHandler;
  my $head_element = $root->element('head2');
  my $head_elements = $root->elements('head2');
  my $test = $root->element('head2')->element('test_tag');
+
+ my $root = XML::Parser::Wrapper->new_doc('root_tag', { root => 'attr' });
 
  my $new_element = $root->add_child('test4', { attr1 => 'val1' });
 
@@ -334,7 +335,7 @@ Aliases: content_xml(), getContentXml()
     sub xml {
         my $self = shift;
 
-        return $self->escape_xml($self->text);
+        return $self->escape_xml_attr($self->text);
     }
     *content_xml = \&html;
     *getContentXml = \&html;
@@ -351,36 +352,63 @@ Aliases: toXml()
 
 =cut
     sub to_xml {
-        my $self = shift;
+        my ($self, $pretty) = @_;
+
+        return $self->_to_xml(0, $pretty, 0);
+    }
+    
+    sub _to_xml {
+        my ($self, $level, $pretty, $index) = @_;
 
         if ($self->is_text) {
-            return $self->escape_xml($self->text);
+            return $self->escape_xml_body($self->text);
         }
         
-        my $attributes = $self->attributes;
+        my $attributes = $self->_get_attrs;
         my $name = $self->name;
         my $kids = $self->kids;
 
-        my $xml = qq{<$name};
+        my $indent = $pretty ? ('    ' x $level) : '';
+        my $eol = $pretty ? "\n" : '';
+
+        my $xml = '';
+
+        if ($pretty and $level >= 1) {
+            $xml .= $eol if $index == 0;
+        }
+        
+        $xml .= qq{$indent<$name};
         if ($attributes and %$attributes) {
             my @pairs;
-            foreach my $key (keys %$attributes) {
-                push @pairs, $key . '=' . '"' . $self->escape_xml($attributes->{$key}) . '"';
+            foreach my $key (sort keys %$attributes) {
+                my $val = $attributes->{$key} . '';
+                
+                push @pairs, $key . '=' . '"' . $self->escape_xml_attr($val) . '"';
             }
             $xml .= ' ' . join(' ', @pairs);
         }
+        
         if ($kids and @$kids) {
-            $xml .= '>' . join('', map { $_->to_xml } @$kids);
-            $xml .= "</$name>";
+            my $cnt = 0;
+            $xml .= '>' . join('', map { $_->_to_xml($level + 1, $pretty, $cnt++) } @$kids);
+            $xml .= $indent if scalar(@$kids) > 1;
+            $xml .= "</$name>$eol";
         }
         else {
-            $xml .= '/>';
+            $xml .= "/>$eol";
         }
     }
     *toXml = \&to_xml;
 
+=pod
+
+=head2 new_doc($root_tag_name, \%attr)
+
+Create a new XML document.
+
+=cut
     sub new_document {
-        my ($class, $root_tag, $attr, $val) = @_;
+        my ($class, $root_tag, $attr) = @_;
 
         $attr = { } unless $attr;
 
@@ -388,6 +416,7 @@ Aliases: toXml()
         
         return bless $data, ref($class) || $class;
     }
+    *new_doc = \&new_document;
 
     sub new_from_tree {
         my $class = shift;
@@ -397,6 +426,15 @@ Aliases: toXml()
         
         return $obj;
     }
+
+#     sub new_doc {
+#         my ($class, $root_name, $attr) = @_;
+
+#         $attr = { } unless $attr and ref($attr) and UNIVERSAL::isa($attr, 'HASH');
+
+#         my $e = $class->new_element;
+#         return $e->add_kid($root_name, $attr);
+#     }
 
 =pod
 
@@ -548,6 +586,29 @@ Aliases: attrs(), getAttributes(), getAttrs()
     *get_attributes = \&attributes;
     *get_attrs = \&attributes;
 
+    sub _get_attrs {
+        my $self = shift;
+        my $val = $self->[1];
+
+        if (ref($val) eq 'ARRAY' and scalar(@$val) > 0) {
+            my $attr = $val->[0];
+            if (@_) {
+                my @keys;
+                if (ref($_[0]) eq 'ARRAY') {
+                    @keys = @{$_[0]};
+                } else {
+                    @keys = @_;
+                }
+
+                return wantarray ? @$attr{@keys} : [ @$attr{@keys} ];
+            }
+
+            return wantarray ? %$attr : $attr;
+        } else {
+            return {};
+        }
+    }
+
 =pod
 
 =head2 attribute($name)
@@ -558,13 +619,28 @@ Aliases: attr(), getAttribute(), getAttr()
 
 =cut
     sub attribute {
-        my $self = shift;
-        my $attr_name = shift;
-        return $self->attributes()->{$attr_name};
+        my ($self, $attr_name) = @_;
+        my $val = $self->attributes()->{$attr_name};
+
+        return undef unless defined $val;
+
+        return $val . '';
     }
     *attr = \&attribute;
     *getAttribute = \&attribute;
     *getAttr = \&attribute;
+
+    sub attribute_str {
+        my ($self, $attr_name) = @_;
+
+        my $attr = $self->attribute($attr_name);
+        if ($attr and ref($attr) eq 'HASH') {
+            return $attr->{Value};
+        }
+        else {
+            return $attr;
+        }
+    }
 
 =pod
 
@@ -710,6 +786,39 @@ Aliases: getFirstElementIf(), kidIf(), first_kid_if()
         return $text;
     }
 
+    sub escape_xml_attr {
+        my ($self, $text) = @_;
+        return undef unless defined $text;
+
+        # FIXME: benchmark this and test fully
+#         $text =~ s/([&<>"'])/$Escape_Map->{$1}/eg;
+#         return $text;
+        
+        $text =~ s/\&/\&amp;/g;
+        $text =~ s/</\&lt;/g;
+        $text =~ s/>/\&gt;/g;
+        $text =~ s/\"/\&#34;/g;
+        $text =~ s/\'/\&#39;/g;
+
+        return $text;
+    }
+
+    sub escape_xml_body {
+        my ($self, $text) = @_;
+        return undef unless defined $text;
+
+        # FIXME: benchmark this and test fully
+#         $text =~ s/([&<>"'])/$Escape_Map->{$1}/eg;
+#         return $text;
+        
+        $text =~ s/\&/\&amp;/g;
+        $text =~ s/</\&lt;/g;
+        $text =~ s/>/\&gt;/g;
+
+        return $text;
+    }
+
+
 =pod
 
 =head2 simple_data()
@@ -810,7 +919,7 @@ structure passed.
             }
         }
         else {
-            return $self->escape_xml($data);
+            return $self->escape_xml_body($data);
         }
 
         return $xml;
@@ -819,13 +928,36 @@ structure passed.
     
 }
 
+{
+    package XML::Parser::Wrapper::AttributeVal;
+
+    use overload '""' => \&as_string;
+
+    sub new {
+        my ($class, $val) = @_;
+
+        return bless { v => $val }, ref($class) || $class;
+    }
+
+    sub as_string {
+        my ($self) = @_;
+
+        my $val = $self->{v};
+        
+        if ($val and ref($val) and UNIVERSAL::isa($val, 'HASH')) {
+            return $val->{Value};
+        }
+        else {
+            return $val;
+        }
+    }
+}
+
 1;
 
 __END__
 
 =pod
-
-=head1 EXAMPLES
 
 
 =head1 AUTHOR
@@ -838,7 +970,7 @@ __END__
 
 =head1 COPYRIGHT
 
- Copyright (c) 2003-2007 Don Owens
+ Copyright (c) 2003-2009 Don Owens
 
  All rights reserved. This program is free software; you can
  redistribute it and/or modify it under the same terms as Perl

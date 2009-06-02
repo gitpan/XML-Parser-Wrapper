@@ -2,7 +2,7 @@ NAME
      XML::Parser::Wrapper - A simple object wrapper around XML::Parser
 
 VERSION
-     0.09
+     0.10
 
 SYNOPSIS
      use XML::Parser::Wrapper;
@@ -34,6 +34,8 @@ SYNOPSIS
      my $head_element = $root->element('head2');
      my $head_elements = $root->elements('head2');
      my $test = $root->element('head2')->element('test_tag');
+
+     my $root = XML::Parser::Wrapper->new_doc('root_tag', { root => 'attr' });
 
      my $new_element = $root->add_child('test4', { attr1 => 'val1' });
 
@@ -121,6 +123,9 @@ METHODS
 
     Aliases: toXml()
 
+  new_doc($root_tag_name, \%attr)
+    Create a new XML document.
+
   add_kid($tag_name, \%attributes, $text_value)
     Adds a child to the current node. If $text_value is defined, it will be
     used as the text between the opening and closing tags. The return value
@@ -200,7 +205,6 @@ METHODS
     The reverse of simple_data() -- return xml representing the data
     structure passed.
 
-EXAMPLES
 AUTHOR
      Don Owens <don@regexguy.com>
 
@@ -208,7 +212,7 @@ CONTRIBUTORS
      David Bushong
 
 COPYRIGHT
-     Copyright (c) 2003-2007 Don Owens
+     Copyright (c) 2003-2009 Don Owens
 
      All rights reserved. This program is free software; you can
      redistribute it and/or modify it under the same terms as Perl

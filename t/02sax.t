@@ -26,7 +26,7 @@ BEGIN {
     unshift @INC, $dir . "/lib";
 }
 
-plan tests => 3;
+plan tests => 7;
 
 use XML::Parser::Wrapper;
 
@@ -75,3 +75,34 @@ if (-e $file) {
 else {
     skip("Skip cuz couldn't find test file", 1);
 }
+
+$xml = qq{<response xmlns:a="http://owensnet.com/schema"><stuff n="foo" a:o="bar&#x3e;"><level2><level3>code</level3><level3>"fu"</level3></level2></stuff><more><stuff><foo><stuff>Hidden Stuff</stuff></foo></stuff></more><deep><deep_var1>deep val 1</deep_var1><deep_var2>deep val 2</deep_var2></deep><stuff>more stuff</stuff><some_cdata><![CDATA[blah]]></some_cdata><tricky><![CDATA[foo]]> bar</tricky></response>};
+
+my $count = 0;
+$handler = sub {
+    my ($root) = @_;
+
+    $count++;
+    
+    if ($count == 1) {
+        my $attr = $root->attr('n');
+        ok($attr eq 'foo');
+
+        $attr = $root->attr('a:o');
+        ok($attr eq 'bar>');
+
+        my $l2 = $root->kid_if('level2');
+        my $l3_list = $l2->kids('level3');
+
+        ok(@$l3_list == 2 and $l3_list->[0]->text eq 'code' and $l3_list->[1]->text eq '"fu"');
+
+        my $out_xml = $root->to_xml;
+        ok($out_xml eq '<stuff a:o="bar&gt;" n="foo"><level2><level3>code</level3><level3>"fu"</level3></level2></stuff>');
+    }
+};
+
+ $root = XML::Parser::Wrapper->new_sax_parser({ class => 'XML::LibXML::SAX',
+                                                  handler => $handler,
+                                                  start_tag => 'stuff',
+                                                  # start_depth => 2,
+                                                }, $xml);

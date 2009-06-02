@@ -1,5 +1,12 @@
 # Creation date: 2008-12-02T09:05:03Z
 # Authors: don
+# $Revision: 308 $
+
+# Copyright (c) 2005-2009 Don Owens
+#
+# All rights reserved. This program is free software; you can
+# redistribute it and/or modify it under the same terms as Perl
+# itself.
 
 =pod
 
@@ -88,8 +95,11 @@ sub characters {
 sub _do_section_chunk {
     my ($self, $e) = @_;
 
-    my %attrs = %{$e->{Attributes}};
+    my %attrs_data = %{$e->{Attributes}};
     my $name = $e->{Name};
+
+    my %attrs = map { ($_->{Name} => XML::Parser::Wrapper::AttributeVal->new($_)) }
+        values %attrs_data;
 
     my $data = [ $name, [ \%attrs ] ];
     my $stack = $self->{stack};
@@ -103,7 +113,8 @@ sub _do_section_chunk {
 sub _do_start_section {
     my ($self, $e) = @_;
 
-    my %attrs = %{$e->{Attributes}};
+    my %attrs = map { ($_->{Name} => XML::Parser::Wrapper::AttributeVal->new($_)) }
+        values %{$e->{Attributes}};
     my $name = $e->{Name};
 
     $self->{data} = [ $name, [ \%attrs ] ];
