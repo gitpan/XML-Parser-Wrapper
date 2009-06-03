@@ -2,7 +2,7 @@ NAME
      XML::Parser::Wrapper - A simple object wrapper around XML::Parser
 
 VERSION
-     0.10
+     0.11
 
 SYNOPSIS
      use XML::Parser::Wrapper;
@@ -31,18 +31,21 @@ SYNOPSIS
          }
      }
 
-     my $head_element = $root->element('head2');
+     my $head_element = $root->first_element('head2');
      my $head_elements = $root->elements('head2');
-     my $test = $root->element('head2')->element('test_tag');
+     my $test = $root->element('head2')->first_element('test_tag');
 
      my $root = XML::Parser::Wrapper->new_doc('root_tag', { root => 'attr' });
 
-     my $new_element = $root->add_child('test4', { attr1 => 'val1' });
+     my $new_element = $root->add_kid('test4', { attr1 => 'val1' });
 
      my $kid = $root->update_kid('root_child', { attr2 => 'stuff2' }, 'blah');
      $kid->update_node({ new_attr => 'new_stuff' });
 
-     $new_element->add_child('child', { myattr => 'stuff' }, 'bleh');
+     $new_element->add_kid('child', { myattr => 'stuff' }, 'bleh');
+
+     my $another_element = $root->new_element('foo', { bar => '1' }, 'test');
+     $root->add_kid($another_element);
 
      my $new_xml = $root->to_xml;
 
@@ -116,44 +119,23 @@ METHODS
 
     Aliases: content_xml(), getContentXml()
 
-  to_xml()
+  to_xml(\%options)
     Converts the node back to XML. The ordering of attributes may not be the
     same as in the original XML, and CDATA sections may become plain text
     elements, or vice versa.
 
+    Valid options
+
+   pretty
+    If pretty is a true value, then whitespace is added to the output to
+    make it more human-readable.
+
+   cdata
+    If cdata is defined, any text nodes with length greater than cdata are
+    output as a CDATA section, unless it contains "]]>", in which case the
+    text is XML escaped.
+
     Aliases: toXml()
-
-  new_doc($root_tag_name, \%attr)
-    Create a new XML document.
-
-  add_kid($tag_name, \%attributes, $text_value)
-    Adds a child to the current node. If $text_value is defined, it will be
-    used as the text between the opening and closing tags. The return value
-    is the newly created node (XML::Parser::Wrapper object) that can then in
-    turn have child nodes added to it. This is useful for loading and XML
-    file, adding an element, then writing the modified XML back out. Note
-    that all parameters must be valid UTF-8.
-
-        my $root = XML::Parser::Wrapper->new($input);
-
-        my $new_element = $root->add_child('test4', { attr1 => 'val1' });
-        $new_element->add_child('child', { myattr => 'stuff' }, 'bleh');
-
-    Aliases: addKid(), add_child, addChild()
-
-  update_node(\%attrs, $text_val)
-    Updates the node, setting the attributes to the ones provided in %attrs,
-    and sets the text child node to $text_val if it is defined. Note that
-    this removes all child nodes.
-
-    Aliases: updateNode()
-
-  update_kid($tag_name, \%attrs, $text_val)
-    Calls update_node() on the first child node with name $tag_name if it
-    exists. If there is no such child node, one is created by calling
-    add_kid().
-
-    Aliases: updateKid(), update_child(), updateChild()
 
   attributes(), attributes($name1, $name2, ...)
     If no arguments are given, returns a hash of attributes for this
@@ -195,6 +177,70 @@ METHODS
                   ->kid_if('field')->attribute('class');
 
     Aliases: getFirstElementIf(), kidIf(), first_kid_if()
+
+  new_doc($root_tag_name, \%attr)
+    Create a new XML document.
+
+  new_element($tag_name, \%attr, $text_val)
+    Create a new XML element object. If $text_val is defined, a child text
+    node will be created.
+
+  add_kid($tag_name, \%attributes, $text_value), add_kid($element_obj)
+    Adds a child to the current node. If $text_value is defined, it will be
+    used as the text between the opening and closing tags. The return value
+    is the newly created node (XML::Parser::Wrapper object) that can then in
+    turn have child nodes added to it. This is useful for loading and XML
+    file, adding an element, then writing the modified XML back out. Note
+    that all parameters must be valid UTF-8.
+
+    If the first argument is an element object created with the
+    new_element() method, that element will be added as a child.
+
+        my $root = XML::Parser::Wrapper->new($input);
+
+        my $new_element = $root->add_kid('test4', { attr1 => 'val1' });
+        $new_element->add_kid('child', { myattr => 'stuff' }, 'bleh');
+
+        my $foo = $root->new_element('foo', { bar => 1 }, 'some text');
+        $new_element->add_kid($foo);
+
+    Aliases: addKid(), add_child, addChild()
+
+  set_attr($name, $val)
+    Set the value of the attribute given by $name to $val for the element.
+
+  set_attrs(\%attrs)
+    Convenience method that calls set_attr() for each key/value pair in
+    %attrs.
+
+  replace_attrs(\%attrs)
+    Replaces all attributes for the element with the provided ones. That is,
+    the old attributes are all removed and the new ones are added.
+
+  remove_kids()
+    Removes all child nodes (include text nodes) from this element.
+
+  remove_kid($name)
+    Removes the first child node with name $name.
+
+  set_text($text_val)
+    Sets the first text child node to $text_val. If there is no text child
+    node, one is created. If $text_val is undef, the first text child node
+    is removed.
+
+  update_node(\%attrs, $text_val)
+    Updates the node, setting the attributes to the ones provided in %attrs,
+    and sets the text child node to $text_val if it is defined. Note that
+    this removes all child nodes.
+
+    Aliases: updateNode()
+
+  update_kid($tag_name, \%attrs, $text_val)
+    Calls update_node() on the first child node with name $tag_name if it
+    exists. If there is no such child node, one is created by calling
+    add_kid().
+
+    Aliases: updateKid(), update_child(), updateChild()
 
   simple_data()
     Assume a data structure of hashes, arrays, and strings are represented

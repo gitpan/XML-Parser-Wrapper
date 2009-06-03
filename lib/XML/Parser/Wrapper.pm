@@ -1,7 +1,7 @@
 # -*-perl-*-
 # Creation date: 2005-04-23 22:39:14
 # Authors: Don
-# $Revision: 308 $
+# $Revision: 310 $
 #
 # Copyright (c) 2005-2009 Don Owens
 #
@@ -26,13 +26,13 @@ use XML::Parser::Wrapper::SAXHandler;
 
     use vars qw($VERSION);
     
-    $VERSION = '0.10';
+    $VERSION = '0.11';
 
 =pod
 
 =head1 VERSION
 
- 0.10
+ 0.11
 
 =cut
 
@@ -64,18 +64,21 @@ use XML::Parser::Wrapper::SAXHandler;
      }
  }
 
- my $head_element = $root->element('head2');
+ my $head_element = $root->first_element('head2');
  my $head_elements = $root->elements('head2');
- my $test = $root->element('head2')->element('test_tag');
+ my $test = $root->element('head2')->first_element('test_tag');
 
  my $root = XML::Parser::Wrapper->new_doc('root_tag', { root => 'attr' });
 
- my $new_element = $root->add_child('test4', { attr1 => 'val1' });
+ my $new_element = $root->add_kid('test4', { attr1 => 'val1' });
 
  my $kid = $root->update_kid('root_child', { attr2 => 'stuff2' }, 'blah');
  $kid->update_node({ new_attr => 'new_stuff' });
 
- $new_element->add_child('child', { myattr => 'stuff' }, 'bleh');
+ $new_element->add_kid('child', { myattr => 'stuff' }, 'bleh');
+
+ my $another_element = $root->new_element('foo', { bar => '1' }, 'test');
+ $root->add_kid($another_element);
 
  my $new_xml = $root->to_xml;
 
@@ -229,7 +232,7 @@ object using the parse tree output from XML::Parser.
         return $obj;
     }
 
-    sub new_element {
+    sub _new_element {
         my $proto = shift;
         my $tree = shift || [];
 
@@ -342,28 +345,57 @@ Aliases: content_xml(), getContentXml()
 
 =pod
 
-=head2 to_xml()
+=head2 to_xml(\%options)
 
 Converts the node back to XML.  The ordering of attributes may
 not be the same as in the original XML, and CDATA sections may
 become plain text elements, or vice versa.
 
+Valid options
+
+=head3 pretty
+
+If pretty is a true value, then whitespace is added to the output
+to make it more human-readable.
+
+=head3 cdata
+
+If cdata is defined, any text nodes with length greater than
+cdata are output as a CDATA section, unless it contains "]]>", in
+which case the text is XML escaped.
+
 Aliases: toXml()
 
 =cut
     sub to_xml {
-        my ($self, $pretty) = @_;
+        my ($self, $options) = @_;
 
-        return $self->_to_xml(0, $pretty, 0);
+        return $self->_to_xml(0, $options, 0);
     }
     
     sub _to_xml {
-        my ($self, $level, $pretty, $index) = @_;
+        my ($self, $level, $options, $index) = @_;
+
+        unless ($options and ref($options) and UNIVERSAL::isa($options, 'HASH')) {
+            $options = { };
+        }
 
         if ($self->is_text) {
-            return $self->escape_xml_body($self->text);
+            my $text = $self->text;
+
+            if (defined $options->{cdata}) {
+                if (length($text) >= $options->{cdata}) {
+                    unless (index($text, ']]>') > -1) {
+                        return '<![CDATA[' . $text . ']]>';
+                    }
+                }
+            }
+            
+            return $self->escape_xml_body($text);
         }
-        
+
+        my $pretty = $options->{pretty};
+
         my $attributes = $self->_get_attrs;
         my $name = $self->name;
         my $kids = $self->kids;
@@ -390,7 +422,7 @@ Aliases: toXml()
         
         if ($kids and @$kids) {
             my $cnt = 0;
-            $xml .= '>' . join('', map { $_->_to_xml($level + 1, $pretty, $cnt++) } @$kids);
+            $xml .= '>' . join('', map { $_->_to_xml($level + 1, $options, $cnt++) } @$kids);
             $xml .= $indent if scalar(@$kids) > 1;
             $xml .= "</$name>$eol";
         }
@@ -399,148 +431,6 @@ Aliases: toXml()
         }
     }
     *toXml = \&to_xml;
-
-=pod
-
-=head2 new_doc($root_tag_name, \%attr)
-
-Create a new XML document.
-
-=cut
-    sub new_document {
-        my ($class, $root_tag, $attr) = @_;
-
-        $attr = { } unless $attr;
-
-        my $data = [$root_tag, [ { %$attr } ] ];
-        
-        return bless $data, ref($class) || $class;
-    }
-    *new_doc = \&new_document;
-
-    sub new_from_tree {
-        my $class = shift;
-        my $tree = shift;
-        
-        my $obj = bless $tree, ref($class) || $class;
-        
-        return $obj;
-    }
-
-#     sub new_doc {
-#         my ($class, $root_name, $attr) = @_;
-
-#         $attr = { } unless $attr and ref($attr) and UNIVERSAL::isa($attr, 'HASH');
-
-#         my $e = $class->new_element;
-#         return $e->add_kid($root_name, $attr);
-#     }
-
-=pod
-
-=head2 add_kid($tag_name, \%attributes, $text_value)
-
-Adds a child to the current node.  If $text_value is defined, it
-will be used as the text between the opening and closing tags.
-The return value is the newly created node (XML::Parser::Wrapper
-object) that can then in turn have child nodes added to it.
-This is useful for loading and XML file, adding an element, then
-writing the modified XML back out.  Note that all parameters
-must be valid UTF-8.
-
-    my $root = XML::Parser::Wrapper->new($input);
-
-    my $new_element = $root->add_child('test4', { attr1 => 'val1' });
-    $new_element->add_child('child', { myattr => 'stuff' }, 'bleh');
-
-Aliases: addKid(), add_child, addChild()
-
-=cut
-    sub add_kid {
-        my ($self, $tag_name, $attr, $val) = @_;
-
-        unless (defined($tag_name)) {
-            return undef;
-        }
-
-        my $attr_to_add;
-        if ($attr and %$attr) {
-            $attr_to_add = $attr;
-        }
-        else {
-            $attr_to_add = { };
-        }
-
-        my $stuff = [ $attr_to_add ];
-        # my $to_add = [ $tag_name, [ $attr_to_add ] ];
-        if (defined($val)) {
-            # push @{$to_add->[1]}, '0', $val;
-            push @$stuff, '0', $val;
-        }
-
-        push @{$self->[1]}, $tag_name, $stuff;
-        # print Data::Dumper->Dump([ $self->[1] ], [ 'index_1' ]) . "\n";
-
-        return $self->new_element([ $tag_name, $stuff ]);
-    }
-    *addChild = \&add_kid;
-    *add_child = \&add_kid;
-    *addKid = \&add_kid;
-
-=pod
-
-=head2 update_node(\%attrs, $text_val)
-
-Updates the node, setting the attributes to the ones provided in
-%attrs, and sets the text child node to $text_val if it is
-defined.  Note that this removes all child nodes.
-
-Aliases: updateNode()
-
-=cut
-    sub update_node {
-        my $self = shift;
-        my $attrs = shift;
-        my $text_val = shift;
-
-        my $stuff = [ $attrs ];
-        if (defined($text_val)) {
-            push @$stuff, '0', $text_val;
-        }
-
-        @{$self->[1]} = @$stuff;
-
-        return $self;
-    }
-    *updateNode = \&update_node;
-
-=pod
-
-=head2 update_kid($tag_name, \%attrs, $text_val)
-
-Calls update_node() on the first child node with name $tag_name
-if it exists.  If there is no such child node, one is created by
-calling add_kid().
-
-Aliases: updateKid(), update_child(), updateChild()
-
-=cut
-    sub update_kid {
-        my ($self, $tag_name, $attrs, $text_val) = @_;
-
-        my $kid = $self->kid($tag_name);
-        if ($kid) {
-            $kid->update_node($attrs, $text_val);
-            return $kid;
-        }
-
-        $kid = $self->add_kid($tag_name, $attrs, $text_val);
-        return $kid;
-    }
-    *updateKid = \&update_kid;
-    *update_child = \&update_kid;
-    *updateChild = \&update_kid;
-
 
 =pod
 
@@ -664,10 +554,10 @@ Aliases: getElements(), kids(), getKids(), children(), getChildren()
             while ($i < $stop) {
                 my $this_tag = $val->[$i];
                 if (defined($tag)) {
-                    push @$kids, XML::Parser::Wrapper->new_element([ $this_tag, $val->[$i + 1] ])
+                    push @$kids, XML::Parser::Wrapper->_new_element([ $this_tag, $val->[$i + 1] ])
                         if $this_tag eq $tag;
                 } else {
-                    push @$kids, XML::Parser::Wrapper->new_element([ $this_tag, $val->[$i + 1] ]);
+                    push @$kids, XML::Parser::Wrapper->_new_element([ $this_tag, $val->[$i + 1] ]);
                 }
                 
                 $i += 2;
@@ -706,18 +596,19 @@ Aliases: getFirstElement(), kid(), first_kid()
                     my $kid;
                     my $this_tag = $val->[$i];
                     if ($this_tag eq $tag) {
-                        return XML::Parser::Wrapper->new_element([ $this_tag, $val->[$i + 1] ]);
+                        return XML::Parser::Wrapper->_new_element([ $this_tag, $val->[$i + 1] ]);
                     }
                     $i += 2;
                 }
                 return undef;
             } else {
-                return XML::Parser::Wrapper->new_element([ $val->[1], $val->[2] ]);
+                return XML::Parser::Wrapper->_new_element([ $val->[1], $val->[2] ]);
             }
         } else {
             return $val;
         }
     }
+    *element = \&kid;
     *first_element = \&kid;
     *getFirstElement = \&kid;
     *first_kid = \&kid;
@@ -743,12 +634,330 @@ Aliases: getFirstElementIf(), kidIf(), first_kid_if()
 
         return $kid if defined $kid;
 
-        return XML::Parser::Wrapper->new_element([ undef, [ {} ] ]);
+        return XML::Parser::Wrapper->_new_element([ undef, [ {} ] ]);
     }
     *kidIf = \&kid_if;
     *first_element_if = \&kid_if;
     *first_kid_if = \&kid_if;
     *getFirstElementIf = \&kid_if;
+
+
+=pod
+
+=head2 new_doc($root_tag_name, \%attr)
+
+Create a new XML document.
+
+=cut
+    sub new_document {
+        my ($class, $root_tag, $attr) = @_;
+
+        $attr = { } unless $attr;
+
+        my $data = [$root_tag, [ { %$attr } ] ];
+        
+        return bless $data, ref($class) || $class;
+    }
+    *new_doc = \&new_document;
+
+=pod
+
+=head2 new_element($tag_name, \%attr, $text_val)
+
+Create a new XML element object.  If $text_val is defined, a
+child text node will be created.
+
+=cut
+    sub new_element {
+        my ($class, $tag_name, $attr, $val) = @_;
+
+        unless (defined($tag_name)) {
+            return undef;
+        }
+
+        my $attr_to_add;
+        if ($attr and %$attr) {
+            $attr_to_add = $attr;
+        }
+        else {
+            $attr_to_add = { };
+        }
+
+        my $stuff = [ $attr_to_add ];
+        if (defined($val)) {
+            push @$stuff, '0', $val;
+        }
+
+        return $class->_new_element([ $tag_name, $stuff ]);
+    }
+
+    sub new_from_tree {
+        my $class = shift;
+        my $tree = shift;
+        
+        my $obj = bless $tree, ref($class) || $class;
+        
+        return $obj;
+    }
+
+=pod
+
+=head2 add_kid($tag_name, \%attributes, $text_value), add_kid($element_obj)
+
+Adds a child to the current node.  If $text_value is defined, it
+will be used as the text between the opening and closing tags.
+The return value is the newly created node (XML::Parser::Wrapper
+object) that can then in turn have child nodes added to it.
+This is useful for loading and XML file, adding an element, then
+writing the modified XML back out.  Note that all parameters
+must be valid UTF-8.
+
+If the first argument is an element object created with the
+new_element() method, that element will be added as a child.
+
+    my $root = XML::Parser::Wrapper->new($input);
+
+    my $new_element = $root->add_kid('test4', { attr1 => 'val1' });
+    $new_element->add_kid('child', { myattr => 'stuff' }, 'bleh');
+
+    my $foo = $root->new_element('foo', { bar => 1 }, 'some text');
+    $new_element->add_kid($foo);
+
+Aliases: addKid(), add_child, addChild()
+
+=cut
+    sub add_kid {
+        my ($self, $tag_name, $attr, $val) = @_;
+
+        unless (defined($tag_name)) {
+            return undef;
+        }
+
+        if (ref($tag_name) and UNIVERSAL::isa($tag_name, 'XML::Parser::Wrapper')) {
+            push @{$self->[1]}, @$tag_name;
+            return $tag_name;
+        }
+
+        my $new_element = $self->new_element($tag_name, $attr, $val);
+        push @{$self->[1]}, @$new_element;
+
+        return $new_element;
+
+    }
+    *addChild = \&add_kid;
+    *add_child = \&add_kid;
+    *addKid = \&add_kid;
+
+=pod
+
+=head2 set_attr($name, $val)
+
+Set the value of the attribute given by $name to $val for the
+element.
+
+=cut
+    sub set_attr {
+        my ($self, $name, $val) = @_;
+
+        $self->[1][0]->{$name} = $val;
+
+        return $val;
+    }
+
+=pod
+
+=head2 set_attrs(\%attrs)
+
+Convenience method that calls set_attr() for each key/value pair
+in %attrs.
+
+=cut
+    sub set_attrs {
+        my ($self, $attrs) = @_;
+
+        return undef unless $attrs;
+
+        return 0 unless %$attrs;
+
+        my $cnt = 0;
+        foreach my $k (keys %$attrs) {
+            $self->set_attr($k, $attrs->{$k});
+            $cnt++;
+        }
+
+        return $cnt;
+    }
+
+=pod
+
+=head2 replace_attrs(\%attrs)
+
+Replaces all attributes for the element with the provided ones.
+That is, the old attributes are all removed and the new ones are
+added.
+
+=cut
+    sub replace_attrs {
+        my ($self, $attrs) = @_;
+
+        return undef unless $attrs;
+        
+        my %new_attrs = %$attrs;
+
+        $self->[1][0] = \%new_attrs;
+
+        return \%new_attrs;
+    }
+
+=pod
+
+=head2 remove_kids()
+
+Removes all child nodes (include text nodes) from this element.
+
+=cut
+    sub remove_kids {
+        my ($self) = @_;
+
+        @{$self->[1]} = ($self->[1][0]);
+
+        return 1;
+    }
+
+=pod
+
+=head2 remove_kid($name)
+
+Removes the first child node with name $name.
+
+=cut
+    sub remove_kid {
+        my ($self, $name_to_remove) = @_;
+
+        return undef unless defined $name_to_remove;
+
+        my $index = 1;
+        my $found = 0;
+        my $children = $self->[1];
+        if (scalar(@$children) > 1) {
+            while (not $found and $index < scalar(@$children)) {
+                my $name = $children->[$index];
+                if ($name eq $name_to_remove) {
+                    $found = 1;
+                }
+                else {
+                    $index += 2;
+                }
+            }
+        }
+
+        if ($found) {
+            splice(@$children, $index, 2);
+
+            return 1;
+        }
+
+        return 0;
+    }
+
+=pod
+
+=head2 set_text($text_val)
+
+Sets the first text child node to $text_val.  If there is no text
+child node, one is created.  If $text_val is undef, the first
+text child node is removed.
+
+=cut
+    sub set_text {
+        my ($self, $text_val) = @_;
+
+        my $index = 1;
+        my $found = 0;
+        my $children = $self->[1];
+        if (scalar(@$children) > 1) {
+            while (not $found and $index < scalar(@$children)) {
+                my $name = $children->[$index];
+                if ($name eq '0') {
+                    $found = 1;
+                }
+                else {
+                    $index += 2;
+                }
+            }
+        }
+
+        unless (defined($text_val)) {
+            return 0 unless $found;
+
+            splice(@$children, $index, 2);
+
+            return 1;
+        }
+
+        if ($found) {
+            $children->[$index + 1] = $text_val;
+        }
+        else {
+            push @$children, '0', $text_val . '';
+        }
+
+        return 1;
+    }
+
+=pod
+
+=head2 update_node(\%attrs, $text_val)
+
+Updates the node, setting the attributes to the ones provided in
+%attrs, and sets the text child node to $text_val if it is
+defined.  Note that this removes all child nodes.
+
+Aliases: updateNode()
+
+=cut
+    sub update_node {
+        my $self = shift;
+        my $attrs = shift;
+        my $text_val = shift;
+
+        my $stuff = [ $attrs ];
+        if (defined($text_val)) {
+            push @$stuff, '0', $text_val;
+        }
+
+        @{$self->[1]} = @$stuff;
+
+        return $self;
+    }
+    *updateNode = \&update_node;
+
+=pod
+
+=head2 update_kid($tag_name, \%attrs, $text_val)
+
+Calls update_node() on the first child node with name $tag_name
+if it exists.  If there is no such child node, one is created by
+calling add_kid().
+
+Aliases: updateKid(), update_child(), updateChild()
+
+=cut
+    sub update_kid {
+        my ($self, $tag_name, $attrs, $text_val) = @_;
+
+        my $kid = $self->kid($tag_name);
+        if ($kid) {
+            $kid->update_node($attrs, $text_val);
+            return $kid;
+        }
+
+        $kid = $self->add_kid($tag_name, $attrs, $text_val);
+        return $kid;
+    }
+    *updateKid = \&update_kid;
+    *update_child = \&update_kid;
+    *updateChild = \&update_kid;
 
     sub escape_html {
         my ($self, $text) = @_;
