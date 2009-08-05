@@ -2,7 +2,7 @@ NAME
      XML::Parser::Wrapper - A simple object wrapper around XML::Parser
 
 VERSION
-     0.11
+     0.12
 
 SYNOPSIS
      use XML::Parser::Wrapper;
@@ -122,7 +122,7 @@ METHODS
   to_xml(\%options)
     Converts the node back to XML. The ordering of attributes may not be the
     same as in the original XML, and CDATA sections may become plain text
-    elements, or vice versa.
+    elements, or vice versa. This assumes the data is encoded in utf-8.
 
     Valid options
 
@@ -136,6 +136,12 @@ METHODS
     text is XML escaped.
 
     Aliases: toXml()
+
+   decl
+    If a true value, output an XML declaration before outputing the
+    converted document, i.e.,
+
+     <?xml version="1.0" encoding="UTF-8"?>
 
   attributes(), attributes($name1, $name2, ...)
     If no arguments are given, returns a hash of attributes for this

@@ -1,7 +1,7 @@
 # -*-perl-*-
 # Creation date: 2005-04-23 22:39:14
 # Authors: Don
-# $Revision: 310 $
+# $Revision: 1231 $
 #
 # Copyright (c) 2005-2009 Don Owens
 #
@@ -26,13 +26,13 @@ use XML::Parser::Wrapper::SAXHandler;
 
     use vars qw($VERSION);
     
-    $VERSION = '0.11';
+    $VERSION = '0.12';
 
 =pod
 
 =head1 VERSION
 
- 0.11
+ 0.12
 
 =cut
 
@@ -208,7 +208,13 @@ object using the parse tree output from XML::Parser.
         if (ref($arg) eq 'HASH') {
             if (exists($arg->{file})) {
                 if ($self->{sax_handler}) {
-                    $self->{parser}->parse(Source => { SystemId => $arg->{file} });
+                    if (UNIVERSAL::isa($arg->{file}, 'GLOB') and *{$arg->{file}}{IO}) {
+                        $self->{parser}->parse(Source => { ByteStream => $arg->{file} });
+                    }
+                    else {
+                        $self->{parser}->parse(Source => { SystemId => $arg->{file} });
+                    }
+                    
                     $tree = $self->{sax_handler}->get_tree;
                 }
                 else {
@@ -349,7 +355,8 @@ Aliases: content_xml(), getContentXml()
 
 Converts the node back to XML.  The ordering of attributes may
 not be the same as in the original XML, and CDATA sections may
-become plain text elements, or vice versa.
+become plain text elements, or vice versa.  This assumes the data
+is encoded in utf-8.
 
 Valid options
 
@@ -366,10 +373,32 @@ which case the text is XML escaped.
 
 Aliases: toXml()
 
+=head3 decl
+
+If a true value, output an XML declaration before outputing the
+converted document, i.e.,
+
+ <?xml version="1.0" encoding="UTF-8"?>
+
 =cut
     sub to_xml {
         my ($self, $options) = @_;
 
+        unless ($options and ref($options) and UNIVERSAL::isa($options, 'HASH')) {
+            $options = { };
+        }
+
+        if ($options->{decl}) {
+            my $xml = qq{<?xml version="1.0" encoding="UTF-8"?>};
+            if ($options->{pretty}) {
+                $xml .= "\n";
+            }
+            
+            $xml .= $self->_to_xml(0, $options, 0);
+
+            return $xml;
+        }
+        
         return $self->_to_xml(0, $options, 0);
     }
     

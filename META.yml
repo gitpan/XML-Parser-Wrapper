@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                XML-Parser-Wrapper
-version:             0.11
+version:             0.12
 abstract:            Simple object wrapper around XML::Parser
 license:             ~
 author:              

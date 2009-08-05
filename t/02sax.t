@@ -26,9 +26,13 @@ BEGIN {
     unshift @INC, $dir . "/lib";
 }
 
-plan tests => 7;
+plan tests => 8;
 
 use XML::Parser::Wrapper;
+
+my $have_io_scalar;
+eval { require IO::Scalar; };
+$have_io_scalar = 1 unless $@;
 
 my $xml = qq{<response><stuff>stuff val</stuff><more><stuff><foo><stuff>Hidden Stuff</stuff></foo></stuff></more><deep><deep_var1>deep val 1</deep_var1><deep_var2>deep val 2</deep_var2></deep><stuff>more stuff</stuff><some_cdata><![CDATA[blah]]></some_cdata><tricky><![CDATA[foo]]> bar</tricky></response>};
 
@@ -106,3 +110,28 @@ $handler = sub {
                                                   start_tag => 'stuff',
                                                   # start_depth => 2,
                                                 }, $xml);
+
+
+if ($have_io_scalar) {
+   $xml = qq{<response><stuff>stuff val</stuff><more><stuff><foo><stuff>Hidden Stuff</stuff></foo></stuff></more><deep><deep_var1>deep val 1</deep_var1><deep_var2>deep val 2</deep_var2></deep><stuff>more stuff</stuff><some_cdata><![CDATA[blah]]></some_cdata><tricky><![CDATA[foo]]> bar</tricky></response>};
+   @text = ();
+
+   $handler = sub {
+    my ($root) = @_;
+    
+    my $text = $root->text;
+    push @text, $text;
+};
+
+    my $io = IO::Scalar->new(\$xml);
+    $root = XML::Parser::Wrapper->new_sax_parser({ class => 'XML::LibXML::SAX',
+                                                   handler => $handler,
+                                                   start_tag => 'stuff',
+                                                   # start_depth => 2,
+                                                 }, $io);
+    
+    ok(scalar(@text) == 2 and $text[0] eq 'stuff val' and $text[1] eq 'more stuff');
+}
+else {
+    skip(1, 1);
+}
