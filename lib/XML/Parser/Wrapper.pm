@@ -1,9 +1,9 @@
 # -*-perl-*-
 # Creation date: 2005-04-23 22:39:14
 # Authors: Don
-# $Revision: 1231 $
+# $Revision: 1579 $
 #
-# Copyright (c) 2005-2009 Don Owens
+# Copyright (c) 2005-2010 Don Owens
 #
 # All rights reserved. This program is free software; you can
 # redistribute it and/or modify it under the same terms as Perl
@@ -13,7 +13,7 @@
 
 =head1 NAME
 
- XML::Parser::Wrapper - A simple object wrapper around XML::Parser
+XML::Parser::Wrapper - A simple object wrapper around XML::Parser
 
 =cut
 
@@ -26,60 +26,60 @@ use XML::Parser::Wrapper::SAXHandler;
 
     use vars qw($VERSION);
     
-    $VERSION = '0.12';
+    $VERSION = '0.13';
 
 =pod
 
 =head1 VERSION
 
- 0.12
+ 0.13
 
 =cut
 
 =head1 SYNOPSIS
 
  use XML::Parser::Wrapper;
-
+ 
  my $xml = qq{<foo><head id="a">Hello World!</head><head2><test_tag id="b"/></head2></foo>};
  my $root = XML::Parser::Wrapper->new($xml);
-
+ 
  my $root2 = XML::Parser::Wrapper->new({ file => '/tmp/test.xml' });
-
+ 
  my $parser = XML::Parser::Wrapper->new;
  my $root3 = $parser->parse({ file => '/tmp/test.xml' });
-
+ 
  my $root4 = XML::Parser::Wrapper->new_sax_parser({ class => 'XML::LibXML::SAX',
                                                     handler => $handler,
                                                     start_tag => 'stuff',
                                                     # start_depth => 2,
                                                   }, $xml);
-
+ 
  my $root_tag_name = $root->name;
  my $roots_children = $root->elements;
-
+ 
  foreach my $element (@$roots_children) {
      if ($element->name eq 'head') {
          my $id = $element->attr('id');
          my $hello_world_text = $element->text; # eq "Hello World!"
      }
  }
-
+ 
  my $head_element = $root->first_element('head2');
  my $head_elements = $root->elements('head2');
  my $test = $root->element('head2')->first_element('test_tag');
-
+ 
  my $root = XML::Parser::Wrapper->new_doc('root_tag', { root => 'attr' });
-
+ 
  my $new_element = $root->add_kid('test4', { attr1 => 'val1' });
-
+ 
  my $kid = $root->update_kid('root_child', { attr2 => 'stuff2' }, 'blah');
  $kid->update_node({ new_attr => 'new_stuff' });
-
+ 
  $new_element->add_kid('child', { myattr => 'stuff' }, 'bleh');
-
+ 
  my $another_element = $root->new_element('foo', { bar => '1' }, 'test');
  $root->add_kid($another_element);
-
+ 
  my $new_xml = $root->to_xml;
 
 =head1 DESCRIPTION
@@ -90,7 +90,7 @@ by XML::Parser.
 
 =head1 METHODS
 
-=head2 new(), new($xml), new({ file => $filename })
+=head2 C<new()>, C<new($xml)>, C<new({ file =E<gt> $filename })>
 
 Calls XML::Parser to parse the given XML and returns a new
 XML::Parser::Wrapper object using the parse tree output from
@@ -131,13 +131,13 @@ If no parameters are passed, a reusable object is returned
 
 =pod
 
-=head2 new_sax_parser(\%params), new_sax_parser(\%params, $xml), new_sax_parser(\%params, { file => $filename })
+=head2 C<new_sax_parser(\%params)>, C<new_sax_parser(\%params, $xml)>, C<new_sax_parser(\%params, { file =E<gt> $filename })>
 
 Experimental support for SAX parsers based on XML::SAX::Base.  Valid parameters are
 
 =head3 class
 
- SAX parser class (defaults to XML::LibXML::SAX)
+SAX parser class (defaults to XML::LibXML::SAX)
 
 =head3 start_tag
 
@@ -152,6 +152,8 @@ Handler function to call when stream parsing.
 Use this option for picking up sections that occur inside another
 section with the same tag name.  E.g., if you want to get the
 inside "foo" section in this example:
+
+=for pod2rst next-code-block: xml
 
  <doc><foo><bar><foo>here</foo></bar></foo></doc>
 
@@ -192,7 +194,7 @@ before you get to the section you want (not the tag depth).
 
 =pod
 
-=head2 parse($xml), parse({ file => $filename })
+=head2 C<parse($xml)>, C<parse({ file =E<gt> $filename })>
 
 Parses the given XML and returns a new XML::Parser::Wrapper
 object using the parse tree output from XML::Parser.
@@ -223,7 +225,12 @@ object using the parse tree output from XML::Parser.
             }
         } else {
             if ($self->{sax_handler}) {
-                $self->{parser}->parse(Source => { String => $arg });
+                if (UNIVERSAL::isa($arg, 'GLOB')) {
+                    $self->{parser}->parse(Source => { ByteStream => $arg });
+                }
+                else {
+                    $self->{parser}->parse(Source => { String => $arg });
+                }
                 $tree = $self->{sax_handler}->get_tree;
             }
             else {
@@ -247,7 +254,7 @@ object using the parse tree output from XML::Parser.
 
 =pod
 
-=head2 name()
+=head2 C<name()>
 
 Returns the name of the element represented by this object.
 
@@ -265,7 +272,7 @@ Aliases: tag(), getName(), getTag()
 
 =pod
 
-=head2 is_text()
+=head2 C<is_text()>
 
 Returns a true value if this element is a text element, false
 otherwise.
@@ -286,7 +293,7 @@ Aliases: isText()
 
 =pod
 
-=head2 text()
+=head2 C<text()>
 
 If this element is a text element, the text is returned.
 Otherwise, return the text from the first child text element, or
@@ -315,7 +322,7 @@ Aliases: content(), getText(), getContent()
 
 =pod
 
-=head2 html()
+=head2 C<html()>
 
 Like text(), except HTML-escape the text (escape &, <, >, and ")
 before returning it.
@@ -333,7 +340,7 @@ Aliases: content_html(), getContentHtml()
 
 =pod
 
-=head2 xml()
+=head2 C<xml()>
 
 Like text(), except XML-escape the text (escape &, <, >, and ")
 before returning it.
@@ -351,7 +358,7 @@ Aliases: content_xml(), getContentXml()
 
 =pod
 
-=head2 to_xml(\%options)
+=head2 C<to_xml(\%options)>
 
 Converts the node back to XML.  The ordering of attributes may
 not be the same as in the original XML, and CDATA sections may
@@ -377,6 +384,8 @@ Aliases: toXml()
 
 If a true value, output an XML declaration before outputing the
 converted document, i.e.,
+
+=for pod2rst next-code-block: xml
 
  <?xml version="1.0" encoding="UTF-8"?>
 
@@ -461,18 +470,78 @@ converted document, i.e.,
     }
     *toXml = \&to_xml;
 
+
+sub to_jsonml {
+    my ($self) = @_;
+
+    return $self->_to_jsonml;
+}
+
+sub _to_jsonml {
+    my ($self) = @_;
+
+    if ($self->is_text) {
+        return $self->_quote_json_str($self->text);
+    }
+
+    my $name = $self->name;
+    my $attrs = $self->_get_attrs;
+    my $kids = $self->kids;
+
+    my $json = '[' . $self->_quote_json_str($name);
+    if ($attrs and %$attrs) {
+        my @keys = sort keys %$attrs;
+        my @pairs =
+            map { $self->_quote_json_str($_) . ':' . $self->_quote_json_str($attrs->{$_}) } @keys;
+        my $attr_str = '{' . join(',', @pairs) . '}';
+        $json .= ',' . $attr_str;
+    }
+
+    if ($kids and @$kids) {
+        foreach my $kid (@$kids) {
+            $json .= ',' . $kid->_to_jsonml;
+        }
+    }
+
+    $json .= ']';
+
+    return $json;
+}
+
+sub _quote_json_str {
+    my ($self, $str) = @_;
+
+    $str =~ s/\\/\\\\/g;
+    $str =~ s/\"/\\\"/g;
+    $str =~ s/\x00/\\u0000/g;
+
+    # FIXME: do tabs, etc.
+    $str =~ s/\x08/\\b/g;
+    $str =~ s/\x09/\\t/g;
+    $str =~ s/\x0a/\\n/g;
+    $str =~ s/\x0c/\\f/g;
+    $str =~ s/\x0d/\\r/g;
+    $str =~ s/([\x00-\x1e])/sprintf("\\u%04x", ord($1))/eg;
+    
+    return '"' . $str . '"';
+}
+
 =pod
 
-=head2 attributes(), attributes($name1, $name2, ...)
+=head2 C<attributes()>, C<attributes($name1, $name2, ...)>
 
 If no arguments are given, returns a hash of attributes for this
 element.  If arguments are present, an array of corresponding
 attribute values is returned.  Returns an array in array context
 and an array reference if called in scalar context.
 
-E.g.,
+E.g., for
+
+=for pod2rst next-code-block: xml
 
      <field name="foo" id="42">bar</field>
+
+use this to get the attributes:
 
      my ($name, $id) = $element->attributes('name', 'id');
 
@@ -530,7 +599,7 @@ Aliases: attrs(), getAttributes(), getAttrs()
 
 =pod
 
-=head2 attribute($name)
+=head2 C<attribute($name)>
 
 Similar to attributes(), but only returns one value.
 
@@ -563,7 +632,7 @@ Aliases: attr(), getAttribute(), getAttr()
 
 =pod
 
-=head2 elements(), elements($element_name)
+=head2 C<elements()>, C<elements($element_name)>
 
 Returns an array of child elements.  If $element_name is passed,
 a list of child elements with that name is returned.
@@ -603,7 +672,7 @@ Aliases: getElements(), kids(), getKids(), children(), getChildren()
 
 =pod
 
-=head2 first_element(), first_element($element_name)
+=head2 C<first_element()>, C<first_element($element_name)>
 
 Returns the first child element of this element.  If
 $element_name is passed, returns the first child element with
@@ -644,7 +713,7 @@ Aliases: getFirstElement(), kid(), first_kid()
 
 =pod
 
-=head2 first_element_if($element_name)
+=head2 C<first_element_if($element_name)>
 
 Like first_element(), except if there is no corresponding child,
 return an object that will work instead of undef.  This allows
@@ -673,7 +742,7 @@ Aliases: getFirstElementIf(), kidIf(), first_kid_if()
 
 =pod
 
-=head2 new_doc($root_tag_name, \%attr)
+=head2 C<new_doc($root_tag_name, \%attr)>
 
 Create a new XML document.
 
@@ -691,7 +760,7 @@ Create a new XML document.
 
 =pod
 
-=head2 new_element($tag_name, \%attr, $text_val)
+=head2 C<new_element($tag_name, \%attr, $text_val)>
 
 Create a new XML element object.  If $text_val is defined, a
 child text node will be created.
@@ -731,7 +800,7 @@ child text node will be created.
 
 =pod
 
-=head2 add_kid($tag_name, \%attributes, $text_value), add_kid($element_obj)
+=head2 C<add_kid($tag_name, \%attributes, $text_value)>, C<add_kid($element_obj)>
 
 Adds a child to the current node.  If $text_value is defined, it
 will be used as the text between the opening and closing tags.
@@ -745,10 +814,10 @@ If the first argument is an element object created with the
 new_element() method, that element will be added as a child.
 
     my $root = XML::Parser::Wrapper->new($input);
-
+ 
     my $new_element = $root->add_kid('test4', { attr1 => 'val1' });
     $new_element->add_kid('child', { myattr => 'stuff' }, 'bleh');
-
+ 
     my $foo = $root->new_element('foo', { bar => 1 }, 'some text');
     $new_element->add_kid($foo);
 
@@ -779,7 +848,7 @@ Aliases: addKid(), add_child, addChild()
 
 =pod
 
-=head2 set_attr($name, $val)
+=head2 C<set_attr($name, $val)>
 
 Set the value of the attribute given by $name to $val for the
 element.
@@ -795,7 +864,7 @@ element.
 
 =pod
 
-=head2 set_attrs(\%attrs)
+=head2 C<set_attrs(\%attrs)>
 
 Convenience method that calls set_attr() for each key/value pair
 in %attrs.
@@ -819,7 +888,7 @@ in %attrs.
 
 =pod
 
-=head2 replace_attrs(\%attrs)
+=head2 C<replace_attrs(\%attrs)>
 
 Replaces all attributes for the element with the provided ones.
 That is, the old attributes are all removed and the new ones are
@@ -840,7 +909,7 @@ added.
 
 =pod
 
-=head2 remove_kids()
+=head2 C<remove_kids()>
 
 Removes all child nodes (include text nodes) from this element.
 
@@ -855,7 +924,7 @@ Removes all child nodes (include text nodes) from this element.
 
 =pod
 
-=head2 remove_kid($name)
+=head2 C<remove_kid($name)>
 
 Removes the first child node with name $name.
 
@@ -891,7 +960,7 @@ Removes the first child node with name $name.
 
 =pod
 
-=head2 set_text($text_val)
+=head2 C<set_text($text_val)>
 
 Sets the first text child node to $text_val.  If there is no text
 child node, one is created.  If $text_val is undef, the first
@@ -936,7 +1005,7 @@ text child node is removed.
 
 =pod
 
-=head2 update_node(\%attrs, $text_val)
+=head2 C<update_node(\%attrs, $text_val)>
 
 Updates the node, setting the attributes to the ones provided in
 %attrs, and sets the text child node to $text_val if it is
@@ -963,7 +1032,7 @@ Aliases: updateNode()
 
 =pod
 
-=head2 update_kid($tag_name, \%attrs, $text_val)
+=head2 C<update_kid($tag_name, \%attrs, $text_val)>
 
 Calls update_node() on the first child node with name $tag_name
 if it exists.  If there is no such child node, one is created by
@@ -1059,7 +1128,7 @@ Aliases: updateKid(), update_child(), updateChild()
 
 =pod
 
-=head2 simple_data()
+=head2 C<simple_data()>
 
 Assume a data structure of hashes, arrays, and strings are
 represented in the xml with no attributes.  Return the data
@@ -1124,8 +1193,8 @@ structure, leaving out the root tag.
     }
 
 =pod
- 
-=head2 dump_simple_data($data)
+
+=head2 C<dump_simple_data($data)>
 
 The reverse of simple_data() -- return xml representing the data
 structure passed.
@@ -1200,18 +1269,30 @@ __END__
 
 =head1 AUTHOR
 
- Don Owens <don@regexguy.com>
+=over 4
+
+=item Don Owens <don@regexguy.com>
+
+=back
 
 =head1 CONTRIBUTORS
 
- David Bushong
+=over 4
+
+=item David Bushong
+
+=back
 
 =head1 COPYRIGHT
 
- Copyright (c) 2003-2009 Don Owens
+Copyright (c) 2003-2010 Don Owens
 
- All rights reserved. This program is free software; you can
- redistribute it and/or modify it under the same terms as Perl
- itself.
+All rights reserved. This program is free software; you can
+redistribute it and/or modify it under the same terms as Perl
+itself.
+
+=head1 SEE ALSO
+
+L<XML::Parser>
 
 =cut

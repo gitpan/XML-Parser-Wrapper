@@ -26,7 +26,7 @@ BEGIN {
     unshift @INC, $dir . "/lib";
 }
 
-plan tests => 8;
+plan tests => 9;
 
 use XML::Parser::Wrapper;
 
@@ -131,6 +131,26 @@ if ($have_io_scalar) {
                                                  }, $io);
     
     ok(scalar(@text) == 2 and $text[0] eq 'stuff val' and $text[1] eq 'more stuff');
+
+      $xml = qq{<response><stuff>stuff val</stuff><more><stuff><foo><stuff>Hidden Stuff</stuff></foo></stuff></more><deep><deep_var1>deep val 1</deep_var1><deep_var2>deep val 2</deep_var2></deep><stuff>more stuff</stuff><some_cdata><![CDATA[blah]]></some_cdata><tricky><![CDATA[foo]]> bar</tricky></response>};
+   @text = ();
+
+   $handler = sub {
+       my ($root) = @_;
+    
+       my $text = $root->text;
+       push @text, $text;
+};
+   
+   $io = IO::Scalar->new(\$xml);
+   $root = XML::Parser::Wrapper->new_sax_parser({ class => 'XML::LibXML::SAX',
+                                                  handler => $handler,
+                                                  start_tag => 'stuff',
+                                                  # start_depth => 2,
+                                                }, { file => $io });
+   
+   ok(scalar(@text) == 2 and $text[0] eq 'stuff val' and $text[1] eq 'more stuff');
+   
 }
 else {
     skip(1, 1);
