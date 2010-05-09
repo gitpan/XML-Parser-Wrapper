@@ -2,7 +2,7 @@ NAME
     XML::Parser::Wrapper - A simple object wrapper around XML::Parser
 
 VERSION
-     0.13
+     0.14
 
 SYNOPSIS
      use XML::Parser::Wrapper;
@@ -49,9 +49,16 @@ SYNOPSIS
      
  my $new_xml = $root->to_xml;
 
+     my $doctype_info = $root->get_doctype;
+
+     my $xml_decl_info = $root->get_xml_decl;
+
 DESCRIPTION
     XML::Parser::Wrapper provides a simple object around XML::Parser to make
     it more convenient to deal with the parse tree returned by XML::Parser.
+
+    For a list of changes in recent versions, see the documentation for
+    XML::Parser::Wrapper::Changes.
 
 METHODS
   "new()", "new($xml)", "new({ file => $filename })"
@@ -89,6 +96,39 @@ METHODS
   "parse($xml)", "parse({ file => $filename })"
     Parses the given XML and returns a new XML::Parser::Wrapper object using
     the parse tree output from XML::Parser.
+
+  "get_xml_decl()"
+    Returns information about the XML declaration at the beginning of the
+    document. E.g., for the declaration
+
+     <?xml version="1.0" encoding="utf-8"?>
+
+    The return value is
+
+        {
+         'version' => '1.0',
+         'standalone' => undef,
+         'encoding' => 'utf-8'
+        }
+
+    NOTE: This does not work for the SAX parser interface.
+
+  "get_doctype()"
+    Returns information about the doctype declaration. E.g., for the
+    declaration
+
+     <!DOCTYPE greeting SYSTEM "hello.dtd">
+
+    The return value is
+
+        {
+         'pubid' => undef,
+         'sysid' => 'hello.dtd',
+         'name' => 'greeting',
+         'internal' => ''
+        }
+
+    NOTE: This does not work for the SAX parser interface.
 
   "name()"
     Returns the name of the element represented by this object.

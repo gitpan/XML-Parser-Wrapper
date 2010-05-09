@@ -19,13 +19,14 @@ use strict;
                   AUTHOR => 'DON OWENS <don@regexguy.com>',
                   PM => { 'lib/XML/Parser/Wrapper.pm' => '$(INST_LIBDIR)/Wrapper.pm',
                           'lib/XML/Parser/Wrapper/SAXHandler.pm' => '$(INST_LIBDIR)/Wrapper/SAXHandler.pm',
+                          'lib/XML/Parser/Wrapper/Changes.pm' => '$(INST_LIBDIR)/Wrapper/Changes.pm',
                         },
                   dist => { COMPRESS => 'gzip -9f', SUFFIX => 'gz',
                             ZIP => '/usr/bin/zip', ZIPFLAGS => '-rl',
                           },
                   DIR => [],
                   EXE_FILES => [],
-                  PREREQ_PM => { 'XML::Parser' => 0 },
+                  PREREQ_PM => { 'XML::Parser' => 0, 'Test::More' => 0 },
                  );
 
 }

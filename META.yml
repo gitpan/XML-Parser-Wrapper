@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               XML-Parser-Wrapper
-version:            0.13
+version:            0.14
 abstract:           Simple object wrapper around XML::Parser
 author:
     - DON OWENS <don@regexguy.com>
@@ -11,6 +11,7 @@ configure_requires:
 build_requires:
     ExtUtils::MakeMaker:  0
 requires:
+    Test::More:   0
     XML::Parser:  0
 no_index:
     directory:

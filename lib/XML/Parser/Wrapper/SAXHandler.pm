@@ -1,6 +1,6 @@
 # Creation date: 2008-12-02T09:05:03Z
 # Authors: don
-# $Revision: 308 $
+# $Revision: 1591 $
 
 # Copyright (c) 2005-2009 Don Owens
 #
@@ -33,6 +33,7 @@ package XML::Parser::Wrapper::SAXHandler;
 
 our $VERSION = '0.01';
 
+use base qw(XML::SAX::Base);
 
 =pod
 
@@ -49,6 +50,7 @@ sub new {
     unless ($params->{start_tag}) {
         $self->{data} = [ ];
         $self->{stack} = [$self->{data} ];
+        $self->{extra_data} = { };
     }
 
     # print Data::Dumper->Dump([ $self ], [ 'self' ]) . "\n\n";
@@ -202,9 +204,49 @@ sub end_element {
     if ($start_tag eq $name) {
         $self->{_start_tag_levels}--;
     }
-
 }
 
+# sub doctype_decl {
+#     my ($self, @args) = @_;
+
+#      use Data::Dumper;
+
+#     print STDERR Data::Dumper->Dump([ \@args ], [ 'doctype_args' ]) . "\n\n";
+
+#     return $self->SUPER::doctype_decl(@args);
+# }
+
+sub xml_decl {
+    my ($self, $data) = @_;
+
+    $self->{extra_data}{xml_decl} = { version => $data->{Version}, encoding => $data->{Encoding},
+                                      standalone => $data->{Standalone} };
+    
+#     use Data::Dumper;
+
+#     print STDERR Data::Dumper->Dump([ $data ], [ 'xml_decl_arg' ]) . "\n\n";
+
+    return $self->SUPER::xml_decl($data);
+}
+
+# sub notation_decl {
+#     my ($self, $data) = @_;
+
+#     use Data::Dumper;
+#     print STDERR Data::Dumper->Dump([ $data ], [ 'notation_decl' ]) . "\n\n";
+
+    
+#     return $self->SUPER::notation_decl($data);
+# }
+
+# sub start_document {
+#     my ($self, $data) = @_;
+
+#    print STDERR Data::Dumper->Dump([ $data ], [ 'start_document' ]) . "\n\n";
+
+    
+#     return $self->SUPER::start_document($data);
+# }
 
 =pod
 

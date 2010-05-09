@@ -1,7 +1,7 @@
 # -*-perl-*-
 # Creation date: 2005-04-23 22:39:14
 # Authors: Don
-# $Revision: 1579 $
+# $Revision: 1592 $
 #
 # Copyright (c) 2005-2010 Don Owens
 #
@@ -26,13 +26,15 @@ use XML::Parser::Wrapper::SAXHandler;
 
     use vars qw($VERSION);
     
-    $VERSION = '0.13';
+    $VERSION = '0.14';
+
+    my %i_data;
 
 =pod
 
 =head1 VERSION
 
- 0.13
+ 0.14
 
 =cut
 
@@ -82,11 +84,19 @@ use XML::Parser::Wrapper::SAXHandler;
  
  my $new_xml = $root->to_xml;
 
+ my $doctype_info = $root->get_doctype;
+
+ my $xml_decl_info = $root->get_xml_decl;
+
 =head1 DESCRIPTION
 
 XML::Parser::Wrapper provides a simple object around XML::Parser
 to make it more convenient to deal with the parse tree returned
 by XML::Parser.
+
+For a list of changes in recent versions, see the documentation
+for XML::Parser::Wrapper::Changes.
+
 
 =head1 METHODS
 
@@ -120,11 +130,69 @@ If no parameters are passed, a reusable object is returned
         return $self->parse(@_);        
     }
 
+    # adapted from refaddr in Scalar::Util
+    sub refaddr {
+        my $obj = shift;
+        my $pkg = ref($obj) or return undef;
+        
+        bless $obj, 'XML::Parser::Wrapper::Fake';
+        
+        my $i = int($obj);
+        
+        bless $obj, $pkg;
+        
+        return $i . '';
+    }
+
+    sub _doctype_handler {
+        my ($self, $orig_handler, $expat, $name, $sysid, $pubid, $internal) = @_;
+
+        $self->{_doctype} = { name => $name, sysid => $sysid,
+                              pubid => $pubid, internal => $internal,
+                            };
+
+        return 0 unless defined $orig_handler;
+        return $orig_handler->($expat, $name, $sysid, $pubid, $internal);
+    }
+
+    sub _xml_decl_handler {
+        my ($self, $orig_handler, $expat, $version, $encoding, $standalone) = @_;
+
+        $self->{_xml_decl} = { version => $version, encoding => $encoding,
+                               standalone => $standalone,
+                             };
+        
+        return 0 unless defined $orig_handler;
+        return $orig_handler->($orig_handler, $expat, $version, $encoding, $standalone);
+    }
+    
     sub _new {
         my $class = shift;
         my $parser = XML::Parser->new(Style => 'Tree');
 
         my $self = bless { parser => $parser }, ref($class) || $class;
+
+        # FIXME: use $parser->setHandlers() here to set handlers for doctype, etc.
+        #        use the return values to get reference to handlers to call after
+        #        so that the Tree style works properly (e.g., knows about any declared entities)
+        # Doctype:  (Expat, Name, Sysid, Pubid, Internal)
+        # XMLDecl: (Expat, Version, Encoding, Standalone)
+
+        my $orig_doctype_handler;
+        my $orig_xml_decl_handler;
+        
+        my $dt_h = sub { $self->_doctype_handler($orig_xml_decl_handler, @_) };
+        my $xd_h = sub { $self->_xml_decl_handler($orig_xml_decl_handler, @_) };
+        my %old_handlers = $parser->setHandlers(Doctype => $dt_h,
+                                                XMLDecl => $xd_h,
+                                               );
+
+        $orig_doctype_handler = $old_handlers{Doctype};
+        $orig_xml_decl_handler = $old_handlers{XMLDecl};
+        
+#         use Data::Dumper;
+#         print STDERR Data::Dumper->Dump([ \%old_handlers ], [ 'old_handlers' ]) . "\n\n";
+#         exit 0;
 
         return $self;
     }
@@ -182,7 +250,12 @@ before you get to the section you want (not the tag depth).
                                                                   handler => $user_cb,
                                                                   start_depth => $start_depth,
                                                                 });
-        $self->{parser} = $parser_class->new({ Handler => $sax_handler });
+        $self->{parser} = $parser_class->new({ Handler => $sax_handler,
+                                               # DeclHandler => $sax_handler,
+                                             });
+
+        # DTDHandler => $sax_handler,
+
         $self->{sax_handler} = $sax_handler;
 
         unless (scalar(@_) >= 1) {
@@ -241,8 +314,82 @@ object using the parse tree output from XML::Parser.
         return undef unless defined($tree) and ref($tree);
         
         my $obj = bless $tree, ref($self);
+
+        my $k = refaddr($obj);
+        $i_data{$k} = { doctype => $self->{_doctype}, xmldecl => $self->{_xml_decl} };
         
         return $obj;
+    }
+
+=pod
+
+=head2 C<get_xml_decl()>
+
+Returns information about the XML declaration at the beginning of
+the document.  E.g., for the declaration
+
+=for pod2rst next-code-block: xml
+
+ <?xml version="1.0" encoding="utf-8"?>
+
+The return value is
+
+    {
+     'version' => '1.0',
+     'standalone' => undef,
+     'encoding' => 'utf-8'
+    }
+
+
+B<NOTE:> This does not work for the SAX parser interface.
+
+
+=cut
+    sub get_xml_decl {
+        my ($self) = @_;
+
+        my $k = refaddr($self);
+        my $data = $i_data{$k};
+
+        if ($data) {
+            return $data->{xmldecl};
+        }
+        return undef;
+    }
+
+=pod
+
+=head2 C<get_doctype()>
+
+Returns information about the doctype declaration.  E.g., for the declaration
+
+=for pod2rst next-code-block: xml
+
+ <!DOCTYPE greeting SYSTEM "hello.dtd">
+
+The return value is
+
+    {
+     'pubid' => undef,
+     'sysid' => 'hello.dtd',
+     'name' => 'greeting',
+     'internal' => ''
+    }
+
+B<NOTE:> This does not work for the SAX parser interface.
+
+
+=cut
+    sub get_doctype {
+        my ($self) = @_;
+
+        my $k = refaddr($self);
+        my $data = $i_data{$k};
+
+        if ($data) {
+            return $data->{doctype};
+        }
+        return undef;
     }
 
     sub _new_element {
@@ -1232,8 +1379,16 @@ structure passed.
         return $xml;
     }
 
-    
+    sub DESTROY {
+        my ($self) = @_;
+        
+        delete $i_data{refaddr($self)};
+        
+        return 1;
+    }
+
 }
+
 
 {
     package XML::Parser::Wrapper::AttributeVal;
