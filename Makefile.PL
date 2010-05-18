@@ -26,7 +26,7 @@ use strict;
                           },
                   DIR => [],
                   EXE_FILES => [],
-                  PREREQ_PM => { 'XML::Parser' => 0, 'Test::More' => 0 },
+                  PREREQ_PM => { 'XML::Parser' => 0, 'Test::More' => 0, 'XML::SAX::Base' => 0 },
                  );
 
 }

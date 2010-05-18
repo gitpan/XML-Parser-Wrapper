@@ -1,7 +1,7 @@
 # -*-perl-*-
 # Creation date: 2005-04-23 22:39:14
 # Authors: Don
-# $Revision: 1592 $
+# $Revision: 1599 $
 #
 # Copyright (c) 2005-2010 Don Owens
 #
@@ -26,7 +26,7 @@ use XML::Parser::Wrapper::SAXHandler;
 
     use vars qw($VERSION);
     
-    $VERSION = '0.14';
+    $VERSION = '0.15';
 
     my %i_data;
 
@@ -95,7 +95,7 @@ to make it more convenient to deal with the parse tree returned
 by XML::Parser.
 
 For a list of changes in recent versions, see the documentation
-for XML::Parser::Wrapper::Changes.
+for L<XML::Parser::Wrapper::Changes>.
 
 
 =head1 METHODS

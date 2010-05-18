@@ -1,5 +1,5 @@
 # Original authors: don
-# $Revision: 1591 $
+# $Revision: 1599 $
 
 
 =pod
@@ -9,6 +9,14 @@
 XML::Parser::Wrapper::Changes - List of significant changes to XML::Parser::Wrapper
 
 =head1 CHANGES
+
+=head2 Version 0.15
+
+=over 4
+
+=item Added C<XML::SAX::Base> to the prerequisites in F<Makefile.PL> to fix automated testing failure
+
+=back
 
 =head2 Version 0.14
 

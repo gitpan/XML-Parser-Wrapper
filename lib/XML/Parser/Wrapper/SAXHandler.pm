@@ -1,6 +1,6 @@
 # Creation date: 2008-12-02T09:05:03Z
 # Authors: don
-# $Revision: 1591 $
+# $Revision: 1599 $
 
 # Copyright (c) 2005-2009 Don Owens
 #
@@ -12,17 +12,13 @@
 
 =head1 NAME
 
-XML::Parser::Wrapper::SAXHandler - 
+XML::Parser::Wrapper::SAXHandler - SAX handler for XML::Parser::Wrapper
 
 =head1 SYNOPSIS
 
+Not meant be used externally.
 
 =head1 DESCRIPTION
-
-
-=head1 VERSION
-
- 0.01
 
 =cut
 
@@ -250,15 +246,9 @@ sub xml_decl {
 
 =pod
 
-=head1 EXAMPLES
-
-
-=head1 DEPENDENCIES
-
-
 =head1 AUTHOR
 
-Don Owens <don@owensnet.com>
+Don Owens <don@regexguy.com>
 
 =head1 LICENSE AND COPYRIGHT
 
@@ -271,9 +261,6 @@ This program is distributed in the hope that it will be
 useful, but WITHOUT ANY WARRANTY; without even the implied
 warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 PURPOSE.
-
-=head1 SEE ALSO
-
 
 =cut
 
